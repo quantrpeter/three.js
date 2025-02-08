@@ -53,7 +53,7 @@ class Textures extends DataMap {
 	 * it updates the texture states representing the attachments of the framebuffer.
 	 *
 	 * @param {RenderTarget} renderTarget - The render target to update.
-	 * @param {Number} [activeMipmapLevel=0] - The active mipmap level.
+	 * @param {number} [activeMipmapLevel=0] - The active mipmap level.
 	 */
 	updateRenderTarget( renderTarget, activeMipmapLevel = 0 ) {
 
@@ -127,18 +127,9 @@ class Textures extends DataMap {
 
 		const options = { sampleCount };
 
-		// when using the WebXR Layers API, the render target uses external textures which
-		// require no manual updates
+		// XR render targets require no texture updates
 
-		if ( renderTarget.isXRRenderTarget === true && renderTarget.hasExternalTextures === true ) {
-
-			if ( depthTexture && renderTarget.autoAllocateDepthBuffer === true ) {
-
-				this.updateTexture( depthTexture, options );
-
-			}
-
-		} else {
+		if ( renderTarget.isXRRenderTarget !== true ) {
 
 			for ( let i = 0; i < textures.length; i ++ ) {
 
@@ -391,9 +382,9 @@ class Textures extends DataMap {
 	 * Computes the number of mipmap levels for the given texture.
 	 *
 	 * @param {Texture} texture - The texture.
-	 * @param {Number} width - The texture's width.
-	 * @param {Number} height - The texture's height.
-	 * @return {Number} The number of mipmap levels.
+	 * @param {number} width - The texture's width.
+	 * @param {number} height - The texture's height.
+	 * @return {number} The number of mipmap levels.
 	 */
 	getMipLevels( texture, width, height ) {
 
@@ -425,7 +416,7 @@ class Textures extends DataMap {
 	 * Returns `true` if the given texture requires mipmaps.
 	 *
 	 * @param {Texture} texture - The texture.
-	 * @return {Boolean} Whether mipmaps are required or not.
+	 * @return {boolean} Whether mipmaps are required or not.
 	 */
 	needsMipmaps( texture ) {
 
@@ -437,7 +428,7 @@ class Textures extends DataMap {
 	 * Returns `true` if the given texture is an environment map.
 	 *
 	 * @param {Texture} texture - The texture.
-	 * @return {Boolean} Whether the given texture is an environment map or not.
+	 * @return {boolean} Whether the given texture is an environment map or not.
 	 */
 	isEnvironmentTexture( texture ) {
 

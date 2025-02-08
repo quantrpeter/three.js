@@ -5,7 +5,7 @@
  */
 'use strict';
 
-const REVISION = '173dev';
+const REVISION = '174dev';
 
 const MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
 const TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
@@ -17418,7 +17418,7 @@ class Line extends Object3D {
 				const a = index.getX( i );
 				const b = index.getX( i + 1 );
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, a, b );
+				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, a, b, i );
 
 				if ( intersect ) {
 
@@ -17433,7 +17433,7 @@ class Line extends Object3D {
 				const a = index.getX( end - 1 );
 				const b = index.getX( start );
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, a, b );
+				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, a, b, end - 1 );
 
 				if ( intersect ) {
 
@@ -17450,7 +17450,7 @@ class Line extends Object3D {
 
 			for ( let i = start, l = end - 1; i < l; i += step ) {
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, i, i + 1 );
+				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, i, i + 1, i );
 
 				if ( intersect ) {
 
@@ -17462,7 +17462,7 @@ class Line extends Object3D {
 
 			if ( this.isLineLoop ) {
 
-				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, end - 1, start );
+				const intersect = checkIntersection( this, raycaster, _ray$1, localThresholdSq, end - 1, start, end - 1 );
 
 				if ( intersect ) {
 
@@ -17509,7 +17509,7 @@ class Line extends Object3D {
 
 }
 
-function checkIntersection( object, raycaster, ray, thresholdSq, a, b ) {
+function checkIntersection( object, raycaster, ray, thresholdSq, a, b, i ) {
 
 	const positionAttribute = object.geometry.attributes.position;
 
@@ -17532,7 +17532,7 @@ function checkIntersection( object, raycaster, ray, thresholdSq, a, b ) {
 		// What do we want? intersection point on the ray or on the segment??
 		// point: raycaster.ray.at( distance ),
 		point: _intersectPointOnSegment.clone().applyMatrix4( object.matrixWorld ),
-		index: a,
+		index: i,
 		face: null,
 		faceIndex: null,
 		barycoord: null,
@@ -37255,11 +37255,11 @@ function fill( texture ) {
  * Given the width, height, format, and type of a texture. Determines how many
  * bytes must be used to represent the texture.
  *
- * @param {Number} width
- * @param {Number} height
- * @param {Number} format
- * @param {Number} type
- * @return {Number} The number of bytes required to represent the texture.
+ * @param {number} width
+ * @param {number} height
+ * @param {number} format
+ * @param {number} type
+ * @return {number} The number of bytes required to represent the texture.
  */
 function getByteLength( width, height, format, type ) {
 
@@ -47005,31 +47005,19 @@ function WebGLState( gl, extensions ) {
 
 	function setCullFace( cullFace ) {
 
-		if ( cullFace !== CullFaceNone ) {
+		{
 
 			enable( gl.CULL_FACE );
 
 			if ( cullFace !== currentCullFace ) {
 
-				if ( cullFace === CullFaceBack ) {
+				{
 
 					gl.cullFace( gl.BACK );
-
-				} else if ( cullFace === CullFaceFront ) {
-
-					gl.cullFace( gl.FRONT );
-
-				} else {
-
-					gl.cullFace( gl.FRONT_AND_BACK );
 
 				}
 
 			}
-
-		} else {
-
-			disable( gl.CULL_FACE );
 
 		}
 

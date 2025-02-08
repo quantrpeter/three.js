@@ -3,8 +3,6 @@ import { NodeUpdateType } from '../core/constants.js';
 import { vec3 } from '../tsl/TSLBase.js';
 import { positionWorld } from '../accessors/Position.js';
 
-/** @module ShadowBaseNode **/
-
 /**
  * Base class for all shadow nodes.
  *
@@ -41,7 +39,7 @@ class ShadowBaseNode extends Node {
 		/**
 		 * Overwritten since shadows are updated by default per render.
 		 *
-		 * @type {String}
+		 * @type {string}
 		 * @default 'render'
 		 */
 		this.updateBeforeType = NodeUpdateType.RENDER;
@@ -49,7 +47,7 @@ class ShadowBaseNode extends Node {
 		/**
 		 * This flag can be used for type testing.
 		 *
-		 * @type {Boolean}
+		 * @type {boolean}
 		 * @readonly
 		 * @default true
 		 */
@@ -86,6 +84,7 @@ class ShadowBaseNode extends Node {
 /**
  * TSL object that represents the vertex position in world space during the shadow pass.
  *
+ * @tsl
  * @type {Node<vec3>}
  */
 export const shadowPositionWorld = /*@__PURE__*/ vec3().toVar( 'shadowPositionWorld' );

@@ -19,8 +19,6 @@ import { lightShadowMatrix } from '../accessors/Lights.js';
 import { resetRendererAndSceneState, restoreRendererAndSceneState } from '../../renderers/common/RendererUtils.js';
 import { getDataFromObject } from '../core/NodeUtils.js';
 
-/** @module ShadowNode **/
-
 const shadowMaterialLib = /*@__PURE__*/ new WeakMap();
 const linearDistance = /*@__PURE__*/ Fn( ( [ position, cameraNear, cameraFar ] ) => {
 
@@ -314,7 +312,7 @@ const _quadMesh = /*@__PURE__*/ new QuadMesh();
 /**
  * Represents the default shadow implementation for lighting nodes.
  *
- * @augments module:ShadowBaseNode~ShadowBaseNode
+ * @augments ShadowBaseNode
  */
 class ShadowNode extends ShadowBaseNode {
 
@@ -328,7 +326,7 @@ class ShadowNode extends ShadowBaseNode {
 	 * Constructs a new shadow node.
 	 *
 	 * @param {Light} light - The shadow casting light.
-	 * @param {LightShadow?} [shadow=null] - An optional light shadow.
+	 * @param {?LightShadow} [shadow=null] - An optional light shadow.
 	 */
 	constructor( light, shadow = null ) {
 
@@ -338,7 +336,7 @@ class ShadowNode extends ShadowBaseNode {
 		 * The light shadow which defines the properties light's
 		 * shadow.
 		 *
-		 * @type {LightShadow?}
+		 * @type {?LightShadow}
 		 * @default null
 		 */
 		this.shadow = shadow || light.shadow;
@@ -346,7 +344,7 @@ class ShadowNode extends ShadowBaseNode {
 		/**
 		 * A reference to the shadow map which is a render target.
 		 *
-		 * @type {RenderTarget?}
+		 * @type {?RenderTarget}
 		 * @default null
 		 */
 		this.shadowMap = null;
@@ -355,7 +353,7 @@ class ShadowNode extends ShadowBaseNode {
 		 * Only relevant for VSM shadows. Render target for the
 		 * first VSM render pass.
 		 *
-		 * @type {RenderTarget?}
+		 * @type {?RenderTarget}
 		 * @default null
 		 */
 		this.vsmShadowMapVertical = null;
@@ -364,7 +362,7 @@ class ShadowNode extends ShadowBaseNode {
 		 * Only relevant for VSM shadows. Render target for the
 		 * second VSM render pass.
 		 *
-		 * @type {RenderTarget?}
+		 * @type {?RenderTarget}
 		 * @default null
 		 */
 		this.vsmShadowMapHorizontal = null;
@@ -373,7 +371,7 @@ class ShadowNode extends ShadowBaseNode {
 		 * Only relevant for VSM shadows. Node material which
 		 * is used to render the first VSM pass.
 		 *
-		 * @type {NodeMaterial?}
+		 * @type {?NodeMaterial}
 		 * @default null
 		 */
 		this.vsmMaterialVertical = null;
@@ -382,7 +380,7 @@ class ShadowNode extends ShadowBaseNode {
 		 * Only relevant for VSM shadows. Node material which
 		 * is used to render the second VSM pass.
 		 *
-		 * @type {NodeMaterial?}
+		 * @type {?NodeMaterial}
 		 * @default null
 		 */
 		this.vsmMaterialHorizontal = null;
@@ -391,7 +389,7 @@ class ShadowNode extends ShadowBaseNode {
 		 * A reference to the output node which defines the
 		 * final result of this shadow node.
 		 *
-		 * @type {Node?}
+		 * @type {?Node}
 		 * @private
 		 * @default null
 		 */
@@ -400,7 +398,7 @@ class ShadowNode extends ShadowBaseNode {
 		/**
 		 * This flag can be used for type testing.
 		 *
-		 * @type {Boolean}
+		 * @type {boolean}
 		 * @readonly
 		 * @default true
 		 */
@@ -490,7 +488,7 @@ class ShadowNode extends ShadowBaseNode {
 	/**
 	 * Returns the shadow filtering function for the given shadow type.
 	 *
-	 * @param {Number} type - The shadow type.
+	 * @param {number} type - The shadow type.
 	 * @return {Function} The filtering function.
 	 */
 	getShadowFilterFn( type ) {
@@ -791,6 +789,7 @@ export default ShadowNode;
 /**
  * TSL function for creating an instance of `ShadowNode`.
  *
+ * @tsl
  * @function
  * @param {Light} light - The shadow casting light.
  * @param {LightShadow} shadow - The light shadow.

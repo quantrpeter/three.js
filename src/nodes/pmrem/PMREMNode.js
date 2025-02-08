@@ -8,8 +8,6 @@ import { nodeProxy, vec3 } from '../tsl/TSLBase.js';
 import { WebGLCoordinateSystem } from '../../constants.js';
 import { Texture } from '../../textures/Texture.js';
 
-/** @module PMREMNode **/
-
 let _generator = null;
 
 const _cache = new WeakMap();
@@ -18,8 +16,8 @@ const _cache = new WeakMap();
  * Generates the cubeUV size based on the given image height.
  *
  * @private
- * @param {Number} imageHeight - The image height.
- * @return {{texelWidth: Number,texelHeight: Number, maxMip: Number}} The result object.
+ * @param {number} imageHeight - The image height.
+ * @return {{texelWidth: number,texelHeight: number, maxMip: number}} The result object.
  */
 function _generateCubeUVSize( imageHeight ) {
 
@@ -195,7 +193,7 @@ class PMREMNode extends TempNode {
 		/**
 		 * The `updateBeforeType` is set to `NodeUpdateType.RENDER`.
 		 *
-		 * @type {String}
+		 * @type {string}
 		 * @default 'render'
 		 */
 		this.updateBeforeType = NodeUpdateType.RENDER;
@@ -326,7 +324,7 @@ export default PMREMNode;
  *
  * @private
  * @param {Array<(Image|Object)>} image - The cube map image.
- * @return {Boolean} Whether the given cube map is ready or not.
+ * @return {boolean} Whether the given cube map is ready or not.
  */
 function isCubeMapReady( image ) {
 
@@ -351,7 +349,7 @@ function isCubeMapReady( image ) {
  *
  * @private
  * @param {(Image|Object)} image - The equirectangular image.
- * @return {Boolean} Whether the given cube map is ready or not.
+ * @return {boolean} Whether the given cube map is ready or not.
  */
 function isEquirectangularMapReady( image ) {
 
@@ -364,6 +362,7 @@ function isEquirectangularMapReady( image ) {
 /**
  * TSL function for creating a PMREM node.
  *
+ * @tsl
  * @function
  * @param {Texture} value - The input texture.
  * @param {Node<vec2>} [uvNode=null] - The uv node.

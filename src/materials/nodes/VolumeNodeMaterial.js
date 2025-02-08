@@ -10,8 +10,6 @@ import { Loop, Break } from '../../nodes/utils/LoopNode.js';
 import { texture3D } from '../../nodes/accessors/Texture3DNode.js';
 import { Color } from '../../math/Color.js';
 
-/** @module VolumeNodeMaterial **/
-
 /**
  * Node material intended for volume rendering. The volumetric data are
  * defined with an instance of {@link Data3DTexture}.
@@ -29,7 +27,7 @@ class VolumeNodeMaterial extends NodeMaterial {
 	/**
 	 * Constructs a new volume node material.
 	 *
-	 * @param {Object?} parameters - The configuration parameter.
+	 * @param {?Object} parameters - The configuration parameter.
 	 */
 	constructor( parameters ) {
 
@@ -38,7 +36,7 @@ class VolumeNodeMaterial extends NodeMaterial {
 		/**
 		 * This flag can be used for type testing.
 		 *
-		 * @type {Boolean}
+		 * @type {boolean}
 		 * @readonly
 		 * @default true
 		 */
@@ -55,7 +53,7 @@ class VolumeNodeMaterial extends NodeMaterial {
 		/**
 		 * A 3D data texture holding the volumetric data.
 		 *
-		 * @type {Data3DTexture?}
+		 * @type {?Data3DTexture}
 		 * @default null
 		 */
 		this.map = null;
@@ -64,7 +62,7 @@ class VolumeNodeMaterial extends NodeMaterial {
 		 * This number of samples for each ray that hits the mesh's surface
 		 * and travels through the volume.
 		 *
-		 * @type {Number}
+		 * @type {number}
 		 * @default 100
 		 */
 		this.steps = 100;
@@ -91,7 +89,7 @@ class VolumeNodeMaterial extends NodeMaterial {
 		 * where the rays enters the volume. The last parameter is a color
 		 * that allows the callback to determine the final color.
 		 *
-		 * @type {testNodeCallback?}
+		 * @type {?testNodeCallback}
 		 * @default null
 		 */
 		this.testNode = null;
