@@ -3,9 +3,10 @@ import { NodeUpdateType } from '../core/constants.js';
 import { uniform } from '../core/UniformNode.js';
 import { Color } from '../../math/Color.js';
 import { renderGroup } from '../core/UniformGroupNode.js';
-import { hash } from '../core/NodeUtils.js';
 import { shadow } from './ShadowNode.js';
 import { nodeObject } from '../tsl/TSLCore.js';
+import { lightViewPosition } from '../accessors/Lights.js';
+import { positionView } from '../accessors/Position.js';
 
 /**
  * Base class for analytic light nodes.
@@ -97,23 +98,42 @@ class AnalyticLightNode extends LightingNode {
 
 	}
 
-	/**
-	 * Overwrites the default {@link Node#customCacheKey} implementation by including the
-	 * `light.id` and `light.castShadow` into the cache key.
-	 *
-	 * @return {number} The custom cache key.
-	 */
-	customCacheKey() {
-
-		return hash( this.light.id, this.light.castShadow ? 1 : 0 );
-
-	}
-
 	getHash() {
 
 		return this.light.uuid;
 
 	}
+
+	/**
+	 * Returns a node representing a direction vector which points from the current
+	 * position in view space to the light's position in view space.
+	 *
+	 * @param {NodeBuilder} builder - The builder object used for setting up the light.
+	 * @return {Node<vec3>} The light vector node.
+	 */
+	getLightVector( builder ) {
+
+		return lightViewPosition( this.light ).sub( builder.context.positionView || positionView );
+
+	}
+
+	/**
+	 * Sets up the direct lighting for the analytic light node.
+	 *
+	 * @abstract
+	 * @param {NodeBuilder} builder - The builder object used for setting up the light.
+	 * @return {Object|undefined} The direct light data (color and direction).
+	 */
+	setupDirect( /*builder*/ ) { }
+
+	/**
+	 * Sets up the direct rect area lighting for the analytic light node.
+	 *
+	 * @abstract
+	 * @param {NodeBuilder} builder - The builder object used for setting up the light.
+	 * @return {Object|undefined} The direct rect area light data.
+	 */
+	setupDirectRectArea( /*builder*/ ) { }
 
 	/**
 	 * Setups the shadow node for this light. The method exists so concrete light classes
@@ -154,7 +174,7 @@ class AnalyticLightNode extends LightingNode {
 
 			} else {
 
-				shadowNode = this.setupShadowNode( builder );
+				shadowNode = this.setupShadowNode();
 
 			}
 
@@ -167,6 +187,18 @@ class AnalyticLightNode extends LightingNode {
 		}
 
 		//
+
+		if ( builder.context.getShadow ) {
+
+			const shadow = builder.context.getShadow( this.light, builder );
+
+			if ( shadow ) {
+
+				shadowColorNode = shadowColorNode.mul( shadow );
+
+			}
+
+		}
 
 		this.colorNode = shadowColorNode;
 
@@ -196,6 +228,21 @@ class AnalyticLightNode extends LightingNode {
 			this.shadowNode.dispose();
 			this.shadowNode = null;
 			this.shadowColorNode = null;
+
+		}
+
+		const directLightData = this.setupDirect( builder );
+		const directRectAreaLightData = this.setupDirectRectArea( builder );
+
+		if ( directLightData ) {
+
+			builder.lightsNode.setupDirectLight( builder, this, directLightData );
+
+		}
+
+		if ( directRectAreaLightData ) {
+
+			builder.lightsNode.setupDirectRectAreaLight( builder, this, directRectAreaLightData );
 
 		}
 

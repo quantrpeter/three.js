@@ -6,6 +6,7 @@ import StereoCompositePassNode from './StereoCompositePassNode.js';
  * A render pass node that creates an anaglyph effect.
  *
  * @augments StereoCompositePassNode
+ * @three_import import { anaglyphPass } from 'three/addons/tsl/display/AnaglyphPassNode.js';
  */
 class AnaglyphPassNode extends StereoCompositePassNode {
 
@@ -39,6 +40,7 @@ class AnaglyphPassNode extends StereoCompositePassNode {
 		/**
 		 * Color matrix node for the left eye.
 		 *
+		 * @private
 		 * @type {UniformNode<mat3>}
 		 */
 		this._colorMatrixLeft = uniform( new Matrix3().fromArray( [
@@ -50,6 +52,7 @@ class AnaglyphPassNode extends StereoCompositePassNode {
 		/**
 		 * Color matrix node for the right eye.
 		 *
+		 * @private
 		 * @type {UniformNode<mat3>}
 		 */
 		this._colorMatrixRight = uniform( new Matrix3().fromArray( [

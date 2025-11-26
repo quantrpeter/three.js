@@ -3,6 +3,9 @@ import { NodeUpdateType } from '../core/constants.js';
 import UniformNode from '../core/UniformNode.js';
 import { nodeProxy } from '../tsl/TSLBase.js';
 import { Vector3 } from '../../math/Vector3.js';
+import { Sphere } from '../../math/Sphere.js';
+
+const _sphere = /*@__PURE__*/ new Sphere();
 
 /**
  * This node can be used to access transformation related metrics of 3D objects.
@@ -61,17 +64,16 @@ class Object3DNode extends Node {
 		/**
 		 * Holds the value of the node as a uniform.
 		 *
-		 * @private
 		 * @type {UniformNode}
 		 */
-		this._uniformNode = new UniformNode( null );
+		this.uniformNode = new UniformNode( null );
 
 	}
 
 	/**
 	 * Overwritten since the node type is inferred from the scope.
 	 *
-	 * @return {string} The node type.
+	 * @return {('mat4'|'vec3'|'float')} The node type.
 	 */
 	getNodeType() {
 
@@ -85,6 +87,10 @@ class Object3DNode extends Node {
 
 			return 'vec3';
 
+		} else if ( scope === Object3DNode.RADIUS ) {
+
+			return 'float';
+
 		}
 
 	}
@@ -97,7 +103,7 @@ class Object3DNode extends Node {
 	update( frame ) {
 
 		const object = this.object3d;
-		const uniformNode = this._uniformNode;
+		const uniformNode = this.uniformNode;
 		const scope = this.scope;
 
 		if ( scope === Object3DNode.WORLD_MATRIX ) {
@@ -131,6 +137,16 @@ class Object3DNode extends Node {
 
 			uniformNode.value.applyMatrix4( camera.matrixWorldInverse );
 
+		} else if ( scope === Object3DNode.RADIUS ) {
+
+			const geometry = frame.object.geometry;
+
+			if ( geometry.boundingSphere === null ) geometry.computeBoundingSphere();
+
+			_sphere.copy( geometry.boundingSphere ).applyMatrix4( object.matrixWorld );
+
+			uniformNode.value = _sphere.radius;
+
 		}
 
 	}
@@ -148,15 +164,19 @@ class Object3DNode extends Node {
 
 		if ( scope === Object3DNode.WORLD_MATRIX ) {
 
-			this._uniformNode.nodeType = 'mat4';
+			this.uniformNode.nodeType = 'mat4';
 
 		} else if ( scope === Object3DNode.POSITION || scope === Object3DNode.VIEW_POSITION || scope === Object3DNode.DIRECTION || scope === Object3DNode.SCALE ) {
 
-			this._uniformNode.nodeType = 'vec3';
+			this.uniformNode.nodeType = 'vec3';
+
+		} else if ( scope === Object3DNode.RADIUS ) {
+
+			this.uniformNode.nodeType = 'float';
 
 		}
 
-		return this._uniformNode.build( builder );
+		return this.uniformNode.build( builder );
 
 	}
 
@@ -183,6 +203,7 @@ Object3DNode.POSITION = 'position';
 Object3DNode.SCALE = 'scale';
 Object3DNode.VIEW_POSITION = 'viewPosition';
 Object3DNode.DIRECTION = 'direction';
+Object3DNode.RADIUS = 'radius';
 
 export default Object3DNode;
 
@@ -191,47 +212,57 @@ export default Object3DNode;
  *
  * @tsl
  * @function
- * @param {?Object3D} [object3d=null] - The 3D object.
+ * @param {?Object3D} [object3d] - The 3D object.
  * @returns {Object3DNode<vec3>}
  */
-export const objectDirection = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.DIRECTION );
+export const objectDirection = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.DIRECTION ).setParameterLength( 1 );
 
 /**
  * TSL function for creating an object 3D node that represents the object's world matrix.
  *
  * @tsl
  * @function
- * @param {?Object3D} [object3d=null] - The 3D object.
+ * @param {?Object3D} [object3d] - The 3D object.
  * @returns {Object3DNode<mat4>}
  */
-export const objectWorldMatrix = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.WORLD_MATRIX );
+export const objectWorldMatrix = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.WORLD_MATRIX ).setParameterLength( 1 );
 
 /**
  * TSL function for creating an object 3D node that represents the object's position in world space.
  *
  * @tsl
  * @function
- * @param {?Object3D} [object3d=null] - The 3D object.
+ * @param {?Object3D} [object3d] - The 3D object.
  * @returns {Object3DNode<vec3>}
  */
-export const objectPosition = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.POSITION );
+export const objectPosition = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.POSITION ).setParameterLength( 1 );
 
 /**
  * TSL function for creating an object 3D node that represents the object's scale in world space.
  *
  * @tsl
  * @function
- * @param {?Object3D} [object3d=null] - The 3D object.
+ * @param {?Object3D} [object3d] - The 3D object.
  * @returns {Object3DNode<vec3>}
  */
-export const objectScale = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.SCALE );
+export const objectScale = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.SCALE ).setParameterLength( 1 );
 
 /**
  * TSL function for creating an object 3D node that represents the object's position in view/camera space.
  *
  * @tsl
  * @function
- * @param {?Object3D} [object3d=null] - The 3D object.
+ * @param {?Object3D} [object3d] - The 3D object.
  * @returns {Object3DNode<vec3>}
  */
-export const objectViewPosition = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.VIEW_POSITION );
+export const objectViewPosition = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.VIEW_POSITION ).setParameterLength( 1 );
+
+/**
+ * TSL function for creating an object 3D node that represents the object's radius.
+ *
+ * @tsl
+ * @function
+ * @param {?Object3D} [object3d] - The 3D object.
+ * @returns {Object3DNode<float>}
+ */
+export const objectRadius = /*@__PURE__*/ nodeProxy( Object3DNode, Object3DNode.RADIUS ).setParameterLength( 1 );

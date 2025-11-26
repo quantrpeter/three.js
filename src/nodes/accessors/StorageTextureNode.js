@@ -11,7 +11,7 @@ import { NodeAccess } from '../core/constants.js';
  *
  * const computeTexture = Fn( ( { storageTexture } ) => {
  *
- * 	const posX = instanceIndex.modInt( width );
+ * 	const posX = instanceIndex.mod( width );
  * 	const posY = instanceIndex.div( width );
  * 	const indexUV = uvec2( posX, posY );
  *
@@ -61,6 +61,14 @@ class StorageTextureNode extends TextureNode {
 		this.storeNode = storeNode;
 
 		/**
+		 * The mip level to write to for storage textures.
+		 *
+		 * @type {number}
+		 * @default 0
+		 */
+		this.mipLevel = 0;
+
+		/**
 		 * This flag can be used for type testing.
 		 *
 		 * @type {boolean}
@@ -98,6 +106,8 @@ class StorageTextureNode extends TextureNode {
 		const properties = builder.getNodeProperties( this );
 		properties.storeNode = this.storeNode;
 
+		return properties;
+
 	}
 
 	/**
@@ -114,7 +124,20 @@ class StorageTextureNode extends TextureNode {
 	}
 
 	/**
-	 * Generates the code snippet of the stroge node. If no `storeNode`
+	 * Sets the mip level to write to.
+	 *
+	 * @param {number} level - The mip level.
+	 * @return {StorageTextureNode} A reference to this node.
+	 */
+	setMipLevel( level ) {
+
+		this.mipLevel = level;
+		return this;
+
+	}
+
+	/**
+	 * Generates the code snippet of the storage node. If no `storeNode`
 	 * is defined, the texture node is generated as normal texture.
 	 *
 	 * @param {NodeBuilder} builder - The current node builder.
@@ -181,15 +204,25 @@ class StorageTextureNode extends TextureNode {
 
 		const properties = builder.getNodeProperties( this );
 
-		const { uvNode, storeNode } = properties;
+		const { uvNode, storeNode, depthNode } = properties;
 
 		const textureProperty = super.generate( builder, 'property' );
-		const uvSnippet = uvNode.build( builder, 'uvec2' );
+		const uvSnippet = uvNode.build( builder, this.value.is3DTexture === true ? 'uvec3' : 'uvec2' );
 		const storeSnippet = storeNode.build( builder, 'vec4' );
+		const depthSnippet = depthNode ? depthNode.build( builder, 'int' ) : null;
 
-		const snippet = builder.generateTextureStore( builder, textureProperty, uvSnippet, storeSnippet );
+		const snippet = builder.generateTextureStore( builder, textureProperty, uvSnippet, depthSnippet, storeSnippet );
 
 		builder.addLineFlowCode( snippet, this );
+
+	}
+
+	clone() {
+
+		const newNode = super.clone();
+		newNode.storeNode = this.storeNode;
+		newNode.mipLevel = this.mipLevel;
+		return newNode;
 
 	}
 
@@ -203,11 +236,11 @@ export default StorageTextureNode;
  * @tsl
  * @function
  * @param {StorageTexture} value - The storage texture.
- * @param {Node<vec2|vec3>} uvNode - The uv node.
+ * @param {?Node<vec2|vec3>} uvNode - The uv node.
  * @param {?Node} [storeNode=null] - The value node that should be stored in the texture.
  * @returns {StorageTextureNode}
  */
-export const storageTexture = /*@__PURE__*/ nodeProxy( StorageTextureNode );
+export const storageTexture = /*@__PURE__*/ nodeProxy( StorageTextureNode ).setParameterLength( 1, 3 );
 
 
 /**
@@ -224,7 +257,7 @@ export const textureStore = ( value, uvNode, storeNode ) => {
 
 	const node = storageTexture( value, uvNode, storeNode );
 
-	if ( storeNode !== null ) node.append();
+	if ( storeNode !== null ) node.toStack();
 
 	return node;
 

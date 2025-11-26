@@ -1,5 +1,6 @@
 import Node from '../core/Node.js';
 import { nodeObject } from '../tsl/TSLBase.js';
+import { warn } from '../../utils.js';
 
 /**
  * `ComputeBuiltinNode` represents a compute-scope builtin value that expose information
@@ -91,10 +92,11 @@ class ComputeBuiltinNode extends Node {
 	 * Whether the current node builder has the builtin or not.
 	 *
 	 * @param {NodeBuilder} builder - The current node builder.
+	 * @return {boolean} Whether the builder has the builtin or not.
 	 */
 	hasBuiltin( builder ) {
 
-		builder.hasBuiltin( this._builtinName );
+		return builder.hasBuiltin( this._builtinName );
 
 	}
 
@@ -109,7 +111,7 @@ class ComputeBuiltinNode extends Node {
 
 		} else {
 
-			console.warn( `ComputeBuiltinNode: Compute built-in value ${builtinName} can not be accessed in the ${builder.shaderStage} stage` );
+			warn( `ComputeBuiltinNode: Compute built-in value ${builtinName} can not be accessed in the ${builder.shaderStage} stage` );
 			return builder.generateConst( nodeType );
 
 		}
@@ -180,7 +182,7 @@ export const numWorkgroups = /*@__PURE__*/ computeBuiltin( 'numWorkgroups', 'uve
  * // Execute 12 compute threads with a workgroup size of 3.
  * const computeFn = Fn( () => {
  *
- * 	If( workgroupId.x.modInt( 2 ).equal( 0 ), () => {
+ * 	If( workgroupId.x.mod( 2 ).equal( 0 ), () => {
  *
  * 		storageBuffer.element( instanceIndex ).assign( instanceIndex );
  *

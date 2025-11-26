@@ -30,9 +30,19 @@ export function lightShadowMatrix( light ) {
 
 	const data = getLightData( light );
 
-	return data.shadowMatrix || ( data.shadowMatrix = uniform( 'mat4' ).setGroup( renderGroup ).onRenderUpdate( () => {
+	return data.shadowMatrix || ( data.shadowMatrix = uniform( 'mat4' ).setGroup( renderGroup ).onRenderUpdate( ( frame ) => {
 
-		if ( light.castShadow !== true ) {
+		// normally, shadow matrices are updated in ShadowNode. However, if the shadow matrix is used outside
+		// of shadow rendering (like in ProjectorLightNode), the shadow matrix still requires an update
+
+		if ( light.castShadow !== true || frame.renderer.shadowMap.enabled === false ) {
+
+			if ( light.shadow.camera.coordinateSystem !== frame.camera.coordinateSystem ) {
+
+				light.shadow.camera.coordinateSystem = frame.camera.coordinateSystem;
+				light.shadow.camera.updateProjectionMatrix();
+
+			}
 
 			light.shadow.updateMatrices( light );
 
@@ -51,22 +61,15 @@ export function lightShadowMatrix( light ) {
  * @tsl
  * @function
  * @param {Light} light -The light source.
+ * @param {Node<vec3>} [position=positionWorld] -The position to project.
  * @returns {Node<vec3>} The projected uvs.
  */
-export function lightProjectionUV( light ) {
+export function lightProjectionUV( light, position = positionWorld ) {
 
-	const data = getLightData( light );
+	const spotLightCoord = lightShadowMatrix( light ).mul( position );
+	const projectionUV = spotLightCoord.xyz.div( spotLightCoord.w );
 
-	if ( data.projectionUV === undefined ) {
-
-		const spotLightCoord = lightShadowMatrix( light ).mul( positionWorld );
-
-		data.projectionUV = spotLightCoord.xyz.div( spotLightCoord.w );
-
-
-	}
-
-	return data.projectionUV;
+	return projectionUV;
 
 }
 
@@ -107,7 +110,7 @@ export function lightTargetPosition( light ) {
  *
  * @tsl
  * @function
- * @param {Light} light -The light source.
+ * @param {Light} light - The light source.
  * @returns {UniformNode<vec3>} The light's position in view space.
  */
 export function lightViewPosition( light ) {
