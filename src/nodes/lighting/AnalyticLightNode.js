@@ -96,6 +96,53 @@ class AnalyticLightNode extends LightingNode {
 		 */
 		this.updateType = NodeUpdateType.FRAME;
 
+		if ( light && light.shadow ) {
+
+			this._shadowDisposeListener = () => {
+
+				this.disposeShadow();
+
+			};
+
+			light.addEventListener( 'dispose', this._shadowDisposeListener );
+
+		}
+
+	}
+
+	dispose() {
+
+		if ( this._shadowDisposeListener ) {
+
+			this.light.removeEventListener( 'dispose', this._shadowDisposeListener );
+
+		}
+
+		super.dispose();
+
+	}
+
+	/**
+	 * Frees internal resources related to shadows.
+	 */
+	disposeShadow() {
+
+		if ( this.shadowNode !== null ) {
+
+			this.shadowNode.dispose();
+			this.shadowNode = null;
+
+		}
+
+		this.shadowColorNode = null;
+
+		if ( this.baseColorNode !== null ) {
+
+			this.colorNode = this.baseColorNode;
+			this.baseColorNode = null;
+
+		}
+
 	}
 
 	getHash() {
@@ -190,13 +237,7 @@ class AnalyticLightNode extends LightingNode {
 
 		if ( builder.context.getShadow ) {
 
-			const shadow = builder.context.getShadow( this.light, builder );
-
-			if ( shadow ) {
-
-				shadowColorNode = shadowColorNode.mul( shadow );
-
-			}
+			shadowColorNode = builder.context.getShadow( this, builder );
 
 		}
 
