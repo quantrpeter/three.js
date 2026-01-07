@@ -7,12 +7,30 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 		<style>
 			body {
-				background-color: #bfe3dd;
+				background-color: #6ec7fa;
 				color: #000;
 			}
 
 			a {
 				color: #2983ff;
+			}
+
+			#toggleButton {
+				position: absolute;
+				top: 20px;
+				right: 20px;
+				padding: 10px 20px;
+				background-color: #2983ff;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+				font-size: 14px;
+				z-index: 100;
+			}
+
+			#toggleButton:hover {
+				background-color: #1a6bdb;
 			}
 		</style>
 	</head>
@@ -20,6 +38,8 @@
 	<body>
 
 		<div id="container"></div>
+
+		<button id="toggleButton">Toggle Object675 Animation</button>
 
 		<div id="info">
 			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - animation - keyframes<br/>
@@ -49,6 +69,8 @@
 			import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 			let mixer;
+			let object675Action = null;
+			let isObject675Playing = true;
 
 			const clock = new THREE.Clock();
 			const container = document.getElementById( 'container' );
@@ -68,7 +90,7 @@
 			scene.environment = pmremGenerator.fromScene( new RoomEnvironment(), 0.04 ).texture;
 
 			const camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100 );
-			camera.position.set( 5, 2, 8 );
+			camera.position.set( 5, 5, 5 );
 
 			const controls = new OrbitControls( camera, renderer.domElement );
 			controls.target.set( 0, 0.5, 0 );
@@ -88,8 +110,39 @@
 				model.scale.set( 0.01, 0.01, 0.01 );
 				scene.add( model );
 
-				mixer = new THREE.AnimationMixer( model );
-				mixer.clipAction( gltf.animations[ 0 ] ).play();
+				// Find Object675 in the model
+				const object675 = model.getObjectByName( 'Object675' );
+				if ( object675 ) {
+					console.log( 'Found Object675:', object675 );
+					mixer = new THREE.AnimationMixer( object675 );
+					
+					// Find animation for Object675
+					if ( gltf.animations.length > 0 ) {
+						object675Action = mixer.clipAction( gltf.animations[ 0 ] );
+						object675Action.play();
+					}
+				} else {
+					console.log( 'Object675 not found, using default animation' );
+					mixer = new THREE.AnimationMixer( model );
+					mixer.clipAction( gltf.animations[ 0 ] ).play();
+				}
+
+				// Set up button click handler
+				document.getElementById( 'toggleButton' ).addEventListener( 'click', function() {
+					if ( object675Action ) {
+						if ( isObject675Playing ) {
+							object675Action.paused = true;
+							isObject675Playing = false;
+							document.getElementById( 'toggleButton' ).textContent = 'Play Object675 Animation';
+						} else {
+							object675Action.paused = false;
+							isObject675Playing = true;
+							document.getElementById( 'toggleButton' ).textContent = 'Pause Object675 Animation';
+						}
+					} else {
+						console.log( 'No Object675 action available' );
+					}
+				});
 
 				renderer.setAnimationLoop( animate );
 
