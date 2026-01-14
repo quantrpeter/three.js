@@ -18,37 +18,37 @@ hr {
 	border-top: 1px solid #ccc;
 }
 
-button {
+.Button {
 	position: relative;
 }
 
-input {
+.Input {
 	vertical-align: middle;
 }
 
-	input[type="color"]::-webkit-color-swatch-wrapper {
+	.Input[type="color"]::-webkit-color-swatch-wrapper {
 		padding: 0;
 	}
-	input[type="color"]::-webkit-color-swatch {
+	.Input[type="color"]::-webkit-color-swatch {
 		border: none;
 	}
 
-textarea {
+.TextArea {
 	tab-size: 4;
 	white-space: pre;
 	word-wrap: normal;
 }
 
-	textarea.success {
+	.TextArea.success {
 		border-color: #8b8 !important;
 	}
 
-	textarea.fail {
+	.TextArea.fail {
 		border-color: #f00 !important;
 		background-color: rgba(255,0,0,0.05);
 	}
 
-textarea, input { outline: none; } /* osx */
+.TextArea, .Input { outline: none; } /* osx */
 
 .Panel {
 	-moz-user-select: none;
@@ -121,9 +121,13 @@ textarea, input { outline: none; } /* osx */
 }
 
 .Listbox .ListboxItem {
-	padding: 6px;
+	padding: 4px;
 	color: #666;
 	white-space: nowrap;
+}
+
+.Listbox .ListboxItem:hover {
+	background-color: rgba(0, 0, 0, 0.02);
 }
 
 .Listbox .ListboxItem.active {
@@ -264,7 +268,7 @@ textarea, input { outline: none; } /* osx */
 
 /*  */
 
-button {
+.Button {
 	color: #555;
 	background-color: #ddd;
 	border: 0px;
@@ -276,27 +280,27 @@ button {
 	outline: none;
 }
 
-	button:hover {
+	.Button:hover {
 		background-color: #fff;
 	}
 
-	button.selected {
+	.Button.selected {
 		background-color: #fff;
 	}
 
-input, textarea {
+.Input, .TextArea {
 	border: 1px solid transparent;
 	color: #444;
 }
 
-input.Number {
+.Input.Number {
 	color: #08f!important;
 	font-size: 12px;
 	border: 0px;
 	padding: 2px;
 }
 
-select {
+.Select {
 	color: #666;
 	background-color: #ddd;
 	border: 0px;
@@ -305,7 +309,7 @@ select {
 	outline: none;
 }
 
-	select:hover {
+	.Select:hover {
 		background-color: #fff;
 	}
 
@@ -533,11 +537,11 @@ select {
 	text-align: center;
 }
 
-	#toolbar button, #toolbar input {
+	#toolbar .Button, #toolbar .Input {
 		height: 32px;
 	}
 
-		#toolbar button img {
+		#toolbar .Button img {
 			width: 16px;
 			opacity: 0.5;
 		}
@@ -644,33 +648,33 @@ select {
 
 @media ( prefers-color-scheme: dark ) {
 
-	button {
+	.Button {
 		color: #aaa;
 		background-color: #222;
 	}
 
-		button:hover {
+		.Button:hover {
 			color: #ccc;
 			background-color: #444;
 		}
 
-		button.selected {
+		.Button.selected {
 			color: #fff;
 			background-color: #08f;
 		}
 
-	input, textarea {
+	.Input, .TextArea {
 		background-color: #222;
 		border: 1px solid transparent;
 		color: #888;
 	}
 
-	select {
+	.Select {
 		color: #aaa;
 		background-color: #222;
 	}
 
-		select:hover {
+		.Select:hover {
 			color: #ccc;
 			background-color: #444;
 		}
@@ -783,6 +787,80 @@ select {
 	.Listbox .ListboxItem.active {
 		background-color: rgba(21,60,94,1);
 	}
+
+}
+
+/* Dialog */
+
+.Dialog {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.Dialog-background {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+.Dialog-content {
+	position: relative;
+	background: #eee;
+	min-width: 300px;
+	max-width: 90%;
+	max-height: 90%;
+	overflow: auto;
+}
+
+.Dialog-title {
+	padding: 10px 15px;
+	color: #666;
+	text-transform: uppercase;
+}
+
+.Dialog-body {
+	padding: 15px;
+}
+
+.Dialog-body .Row {
+	display: flex;
+	align-items: center;
+	min-height: 24px;
+	margin-bottom: 10px;
+}
+
+.Dialog-body .Row .Label {
+	width: 120px;
+	color: #888;
+}
+
+.Dialog-buttons {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 15px;
+}
+
+@media ( prefers-color-scheme: dark ) {
+
+	.Dialog-content {
+		background: #111;
+	}
+
+	.Dialog-title {
+		color: #888;
+	}
+
+
 
 }
 

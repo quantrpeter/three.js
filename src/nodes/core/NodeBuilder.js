@@ -8,7 +8,7 @@ import ParameterNode from './ParameterNode.js';
 import StructType from './StructType.js';
 import FunctionNode from '../code/FunctionNode.js';
 import NodeMaterial from '../../materials/nodes/NodeMaterial.js';
-import { getTypeFromLength } from './NodeUtils.js';
+import { getDataFromObject, getTypeFromLength } from './NodeUtils.js';
 import { NodeUpdateType, defaultBuildStages, shaderStages } from './constants.js';
 
 import {
@@ -653,7 +653,16 @@ class NodeBuilder {
 					const uniforms = bindings[ shaderStage ][ groupName ];
 
 					const groupUniforms = groups[ groupName ] || ( groups[ groupName ] = [] );
-					groupUniforms.push( ...uniforms );
+
+					for ( const uniform of uniforms ) {
+
+						if ( groupUniforms.includes( uniform ) === false ) {
+
+							groupUniforms.push( uniform );
+
+						}
+
+					}
 
 				}
 
@@ -953,8 +962,13 @@ class NodeBuilder {
 		const context = { ...this.context };
 
 		delete context.material;
+		delete context.getUV;
+		delete context.getOutput;
+		delete context.getTextureLevel;
+		delete context.getAO;
+		delete context.getShadow;
 
-		return this.context;
+		return context;
 
 	}
 
@@ -2911,9 +2925,9 @@ class NodeBuilder {
 
 			this.setBuildStage( buildStage );
 
-			if ( this.context.vertex && this.context.vertex.isNode ) {
+			if ( this.context.position && this.context.position.isNode ) {
 
-				this.flowNodeFromShaderStage( 'vertex', this.context.vertex );
+				this.flowNodeFromShaderStage( 'vertex', this.context.position );
 
 			}
 
@@ -3110,6 +3124,20 @@ class NodeBuilder {
 	getSignature() {
 
 		return `// Three.js r${ REVISION } - Node System\n`;
+
+	}
+
+	/**
+	 * Returns `true` if data from the previous frame are required. Relevant
+	 * when computing motion vectors with {@link VelocityNode}.
+	 *
+	 * @return {boolean} Whether data from the previous frame are required or not.
+	 */
+	needsPreviousData() {
+
+		const mrt = this.renderer.getMRT();
+
+		return ( mrt && mrt.has( 'velocity' ) ) || getDataFromObject( this.object ).useVelocity === true;
 
 	}
 

@@ -34,17 +34,21 @@ class WebGPUUtils {
 
 		let format;
 
-		if ( renderContext.depthTexture !== null ) {
+		if ( renderContext.depth ) {
 
-			format = this.getTextureFormatGPU( renderContext.depthTexture );
+			if ( renderContext.depthTexture !== null ) {
 
-		} else if ( renderContext.depth && renderContext.stencil ) {
+				format = this.getTextureFormatGPU( renderContext.depthTexture );
 
-			format = GPUTextureFormat.Depth24PlusStencil8;
+			} else if ( renderContext.stencil ) {
 
-		} else if ( renderContext.depth ) {
+				format = GPUTextureFormat.Depth24PlusStencil8;
 
-			format = GPUTextureFormat.Depth24Plus;
+			} else {
+
+				format = GPUTextureFormat.Depth24Plus;
+
+			}
 
 		}
 
@@ -220,23 +224,25 @@ class WebGPUUtils {
 	 */
 	getPreferredCanvasFormat() {
 
-		const outputType = this.backend.parameters.outputType;
+		const parameters = this.backend.parameters;
 
-		if ( outputType === undefined ) {
+		const bufferType = parameters.outputType;
+
+		if ( bufferType === undefined ) {
 
 			return navigator.gpu.getPreferredCanvasFormat();
 
-		} else if ( outputType === UnsignedByteType ) {
+		} else if ( bufferType === UnsignedByteType ) {
 
 			return GPUTextureFormat.BGRA8Unorm;
 
-		} else if ( outputType === HalfFloatType ) {
+		} else if ( bufferType === HalfFloatType ) {
 
 			return GPUTextureFormat.RGBA16Float;
 
 		} else {
 
-			throw new Error( 'Unsupported outputType' );
+			throw new Error( 'Unsupported output buffer type.' );
 
 		}
 

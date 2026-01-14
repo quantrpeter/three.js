@@ -1,4 +1,4 @@
-export const REVISION = '182dev';
+export const REVISION = '183dev';
 
 /**
  * Represents mouse buttons and interaction types in context of controls.
@@ -154,6 +154,14 @@ export const MultiplyBlending = 4;
  * @constant
  */
 export const CustomBlending = 5;
+
+/**
+ * Represents material blending.
+ *
+ * @type {number}
+ * @constant
+ */
+export const MaterialBlending = 6;
 
 /**
  * A `source + destination` blending equation.
@@ -1678,6 +1686,16 @@ export const InterpolationSamplingMode = {
 	SAMPLE: 'sample',
 	FIRST: 'first',
 	EITHER: 'either'
+};
+
+/**
+ * Compatibility flags for features that may not be supported across all platforms.
+ *
+ * @type {Object}
+ * @constant
+ */
+export const Compatibility = {
+	TEXTURE_COMPARE: 'depthTextureCompare'
 };
 
 /**

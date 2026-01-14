@@ -1,9 +1,9 @@
 import puppeteer from 'puppeteer';
-import express from 'express';
-import path from 'path';
-import pixelmatch from 'pixelmatch';
-import { Jimp } from 'jimp';
+import { Image } from './image.js';
 import * as fs from 'fs/promises';
+import { createServer } from '../../utils/server.js';
+
+const server = createServer();
 
 const exceptionList = [
 
@@ -117,18 +117,42 @@ let browser;
 
 /* Launch server */
 
-const app = express();
-app.use( express.static( path.resolve() ) );
-const server = app.listen( port, main );
+server.listen( port, main );
 
-process.on( 'SIGINT', () => close() );
+process.on( 'SIGINT', async () => {
+
+	console.log( '\nInterrupted, cleaning up...' );
+
+	if ( browser ) {
+
+		try {
+
+			await browser.close();
+
+		} catch ( e ) {}
+
+	}
+
+	server.close();
+	process.exit( 1 );
+
+} );
 
 async function main() {
 
 	/* Create output directory */
 
-	try { await fs.rm( 'test/e2e/output-screenshots', { recursive: true, force: true } ); } catch {}
-	try { await fs.mkdir( 'test/e2e/output-screenshots' ); } catch {}
+	try {
+
+		await fs.rm( 'test/e2e/output-screenshots', { recursive: true, force: true } );
+
+	} catch ( e ) {}
+
+	try {
+
+		await fs.mkdir( 'test/e2e/output-screenshots' );
+
+	} catch ( e ) {}
 
 	/* Find files */
 
@@ -289,11 +313,19 @@ async function preparePage( page, injection, builds, errorMessages ) {
 		}
 
 		const args = await Promise.all( msg.args().map( async arg => {
+
 			try {
+
 				return await arg.executionContext().evaluate( arg => arg instanceof Error ? arg.message : arg, arg );
-			} catch ( e ) { // Execution context might have been already destroyed
+
+			} catch ( e ) {
+
+				// Execution context might have been already destroyed
+
 				return arg;
+
 			}
+
 		} ) );
 
 		let text = args.join( ' ' ); // https://github.com/puppeteer/puppeteer/issues/3397#issuecomment-434970058
@@ -343,7 +375,7 @@ async function preparePage( page, injection, builds, errorMessages ) {
 
 			}
 
-		} catch {}
+		} catch ( e ) {}
 
 	} );
 
@@ -455,7 +487,7 @@ async function makeAttempt( page, failedScreenshots, cleanPage, isMakeScreenshot
 
 		}
 
-		const screenshot = ( await Jimp.read( await page.screenshot(), { quality: jpgQuality } ) ).scale( 1 / viewScale );
+		const screenshot = ( await Image.read( await page.screenshot() ) ).scale( 1 / viewScale );
 
 		if ( page.error !== undefined ) throw new Error( page.error );
 
@@ -463,7 +495,7 @@ async function makeAttempt( page, failedScreenshots, cleanPage, isMakeScreenshot
 
 			/* Make screenshots */
 
-			await screenshot.write( `examples/screenshots/${ file }.jpg` );
+			await screenshot.write( `examples/screenshots/${ file }.jpg`, jpgQuality );
 
 			console.green( `Screenshot generated for file ${ file }` );
 
@@ -475,11 +507,11 @@ async function makeAttempt( page, failedScreenshots, cleanPage, isMakeScreenshot
 
 			try {
 
-				expected = ( await Jimp.read( `examples/screenshots/${ file }.jpg`, { quality: jpgQuality } ) );
+				expected = await Image.read( `examples/screenshots/${ file }.jpg` );
 
-			} catch {
+			} catch ( e ) {
 
-				await screenshot.write( `test/e2e/output-screenshots/${ file }-actual.jpg` );
+				await screenshot.write( `test/e2e/output-screenshots/${ file }-actual.jpg`, jpgQuality );
 				throw new Error( `Screenshot does not exist: ${ file }` );
 
 			}
@@ -491,16 +523,13 @@ async function makeAttempt( page, failedScreenshots, cleanPage, isMakeScreenshot
 
 			try {
 
-				numDifferentPixels = pixelmatch( expected.bitmap.data, actual.data, diff.bitmap.data, actual.width, actual.height, {
-					threshold: pixelThreshold,
-					alpha: 0.2
-				} );
+				numDifferentPixels = expected.compare( screenshot, diff, pixelThreshold );
 
-			} catch {
+			} catch ( e ) {
 
-				await screenshot.write( `test/e2e/output-screenshots/${ file }-actual.jpg` );
-				await expected.write( `test/e2e/output-screenshots/${ file }-expected.jpg` );
-				throw new Error( `Image sizes does not match in file: ${ file }` );
+				await screenshot.write( `test/e2e/output-screenshots/${ file }-actual.jpg`, jpgQuality );
+				await expected.write( `test/e2e/output-screenshots/${ file }-expected.jpg`, jpgQuality );
+				throw new Error( `Image sizes do not match in file: ${ file }` );
 
 			}
 
@@ -514,9 +543,9 @@ async function makeAttempt( page, failedScreenshots, cleanPage, isMakeScreenshot
 
 			} else {
 
-				await screenshot.write( `test/e2e/output-screenshots/${ file }-actual.jpg` );
-				await expected.write( `test/e2e/output-screenshots/${ file }-expected.jpg` );
-				await diff.write( `test/e2e/output-screenshots/${ file }-diff.jpg` );
+				await screenshot.write( `test/e2e/output-screenshots/${ file }-actual.jpg`, jpgQuality );
+				await expected.write( `test/e2e/output-screenshots/${ file }-expected.jpg`, jpgQuality );
+				await diff.write( `test/e2e/output-screenshots/${ file }-diff.jpg`, jpgQuality );
 				throw new Error( `Diff wrong in ${ differentPixels.toFixed( 1 ) }% of pixels in file: ${ file }` );
 
 			}

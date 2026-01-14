@@ -355,12 +355,35 @@ class Object3D extends EventDispatcher {
 		this.customDistanceMaterial = undefined;
 
 		/**
+		 * Whether the 3D object is supposed to be static or not. If set to `true`, it means
+		 * the 3D object is not going to be changed after the initial renderer. This includes
+		 * geometry and material settings. A static 3D object can be processed by the renderer
+		 * slightly faster since certain state checks can be bypassed.
+		 *
+		 * Only relevant in context of {@link WebGPURenderer}.
+		 *
+		 * @type {boolean}
+		 * @default false
+		 */
+		this.static = false;
+
+		/**
 		 * An object that can be used to store custom data about the 3D object. It
 		 * should not hold references to functions as these will not be cloned.
 		 *
 		 * @type {Object}
 		 */
 		this.userData = {};
+
+		/**
+		 * The pivot point for rotation and scale transformations.
+		 * When set, rotation and scale are applied around this point
+		 * instead of the object's origin.
+		 *
+		 * @type {?Vector3}
+		 * @default null
+		 */
+		this.pivot = null;
 
 	}
 
@@ -644,7 +667,7 @@ class Object3D extends EventDispatcher {
 	}
 
 	/**
-	 * Converts the given vector from this 3D object's word space to local space.
+	 * Converts the given vector from this 3D object's world space to local space.
 	 *
 	 * @param {Vector3} vector - The vector to convert.
 	 * @return {Vector3} The converted vector.
@@ -1109,6 +1132,19 @@ class Object3D extends EventDispatcher {
 
 		this.matrix.compose( this.position, this.quaternion, this.scale );
 
+		const pivot = this.pivot;
+
+		if ( pivot !== null ) {
+
+			const px = pivot.x, py = pivot.y, pz = pivot.z;
+			const te = this.matrix.elements;
+
+			te[ 12 ] += px - te[ 0 ] * px - te[ 4 ] * py - te[ 8 ] * pz;
+			te[ 13 ] += py - te[ 1 ] * px - te[ 5 ] * py - te[ 9 ] * pz;
+			te[ 14 ] += pz - te[ 2 ] * px - te[ 6 ] * py - te[ 10 ] * pz;
+
+		}
+
 		this.matrixWorldNeedsUpdate = true;
 
 	}
@@ -1267,11 +1303,14 @@ class Object3D extends EventDispatcher {
 		if ( this.visible === false ) object.visible = false;
 		if ( this.frustumCulled === false ) object.frustumCulled = false;
 		if ( this.renderOrder !== 0 ) object.renderOrder = this.renderOrder;
+		if ( this.static !== false ) object.static = this.static;
 		if ( Object.keys( this.userData ).length > 0 ) object.userData = this.userData;
 
 		object.layers = this.layers.mask;
 		object.matrix = this.matrix.toArray();
 		object.up = this.up.toArray();
+
+		if ( this.pivot !== null ) object.pivot = this.pivot.toArray();
 
 		if ( this.matrixAutoUpdate === false ) object.matrixAutoUpdate = false;
 
@@ -1548,6 +1587,12 @@ class Object3D extends EventDispatcher {
 		this.quaternion.copy( source.quaternion );
 		this.scale.copy( source.scale );
 
+		if ( source.pivot !== null ) {
+
+			this.pivot = source.pivot.clone();
+
+		}
+
 		this.matrix.copy( source.matrix );
 		this.matrixWorld.copy( source.matrixWorld );
 
@@ -1564,6 +1609,8 @@ class Object3D extends EventDispatcher {
 
 		this.frustumCulled = source.frustumCulled;
 		this.renderOrder = source.renderOrder;
+
+		this.static = source.static;
 
 		this.animations = source.animations.slice();
 
