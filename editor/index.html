@@ -16,6 +16,7 @@
 			{
 				"imports": {
 					"three": "../build/three.module.js",
+					"three/webgpu": "../build/three.webgpu.js",
 					"three/addons/": "../examples/jsm/",
 
 					"three/examples/": "../examples/",
@@ -111,6 +112,10 @@
 					if ( state !== undefined ) {
 
 						await editor.fromJSON( state );
+
+					} else {
+
+						editor.signals.sceneEnvironmentChanged.dispatch( 'Default' );
 
 					}
 
@@ -235,7 +240,7 @@
 
 			}
 
-			// ServiceWorker
+			// @deprecated, r183
 
 			if ( 'serviceWorker' in navigator ) {
 

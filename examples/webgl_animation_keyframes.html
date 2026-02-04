@@ -78,9 +78,15 @@
 
 		const pmremGenerator = new THREE.PMREMGenerator(renderer);
 
+<<<<<<< HEAD
 		const scene = new THREE.Scene();
 		scene.background = new THREE.Color(0xbfe3dd);
 		scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+=======
+			const timer = new THREE.Timer();
+			timer.connect( document );
+			const container = document.getElementById( 'container' );
+>>>>>>> 65f616d29eca9b2328cd294d9df4fe6d464aa1e3
 
 		const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 100);
 		camera.position.set(5, 2, 8);
@@ -202,7 +208,9 @@
 
 			function animate() {
 
-				const delta = clock.getDelta();
+				timer.update();
+
+				const delta = timer.getDelta();
 
 				mixer.update( delta );
 

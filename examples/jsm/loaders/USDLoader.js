@@ -3,13 +3,13 @@ import {
 	Loader
 } from 'three';
 
-import * as fflate from '../libs/fflate.module.js';
+import { unzipSync } from '../libs/fflate.module.js';
 import { USDAParser } from './usd/USDAParser.js';
 import { USDCParser } from './usd/USDCParser.js';
 import { USDComposer } from './usd/USDComposer.js';
 
 /**
- * A loader for the USD format (USDA, USDC, USDZ).
+ * A loader for the USD format (USD, USDA, USDC, USDZ).
  *
  * Supports both ASCII (USDA) and binary (USDC) USD files, as well as
  * USDZ archives containing either format.
@@ -123,7 +123,7 @@ class USDLoader extends Loader {
 
 					} else {
 
-						const text = fflate.strFromU8( zip[ filename ] );
+						const text = new TextDecoder().decode( zip[ filename ] );
 						// Store parsed data (specsByPath) for on-demand composition
 						data[ filename ] = usda.parseData( text );
 						// Store raw text for re-parsing with variant selections
@@ -201,11 +201,13 @@ class USDLoader extends Loader {
 
 		}
 
+		const scope = this;
+
 		// USDA (standalone)
 
 		if ( typeof buffer === 'string' ) {
 
-			const composer = new USDComposer();
+			const composer = new USDComposer( scope.manager );
 			const data = usda.parseData( buffer );
 			return composer.compose( data, {} );
 
@@ -215,36 +217,48 @@ class USDLoader extends Loader {
 
 		if ( isCrateFile( buffer ) ) {
 
-			const composer = new USDComposer();
+			const composer = new USDComposer( scope.manager );
 			const data = usdc.parseData( buffer );
 			return composer.compose( data, {} );
 
 		}
 
+		const bytes = new Uint8Array( buffer );
+
 		// USDZ
 
-		const zip = fflate.unzipSync( new Uint8Array( buffer ) );
+		if ( bytes[ 0 ] === 0x50 && bytes[ 1 ] === 0x4B ) {
 
-		const assets = parseAssets( zip );
+			const zip = unzipSync( bytes );
 
-		const { file, basePath } = findUSD( zip );
+			const assets = parseAssets( zip );
 
-		// Compose the main file using USDComposer (works for both USDC and USDA)
-		const composer = new USDComposer();
-		let data;
+			const { file, basePath } = findUSD( zip );
 
-		if ( isCrateFile( file ) ) {
+			const composer = new USDComposer( scope.manager );
+			let data;
 
-			data = usdc.parseData( file.buffer );
+			if ( isCrateFile( file ) ) {
 
-		} else {
+				data = usdc.parseData( file.buffer );
 
-			const text = fflate.strFromU8( file );
-			data = usda.parseData( text );
+			} else {
+
+				const text = new TextDecoder().decode( file );
+				data = usda.parseData( text );
+
+			}
+
+			return composer.compose( data, assets, {}, basePath );
 
 		}
 
-		return composer.compose( data, assets, {}, basePath );
+		// USDA (standalone, as ArrayBuffer)
+
+		const composer = new USDComposer( scope.manager );
+		const text = new TextDecoder().decode( bytes );
+		const data = usda.parseData( text );
+		return composer.compose( data, {} );
 
 	}
 

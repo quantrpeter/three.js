@@ -1,5 +1,17 @@
 const textDecoder = new TextDecoder();
 
+// Pre-computed half-float exponent lookup table for fast conversion
+// Math.pow(2, exp - 15) for exp = 0..31
+const HALF_EXPONENT_TABLE = new Float32Array( 32 );
+for ( let i = 0; i < 32; i ++ ) {
+
+	HALF_EXPONENT_TABLE[ i ] = Math.pow( 2, i - 15 );
+
+}
+
+// Pre-computed constant for denormalized half-floats: 2^-14
+const HALF_DENORM_SCALE = Math.pow( 2, - 14 );
+
 // Type enum values from crateDataTypes.h
 const TypeEnum = {
 	Invalid: 0,
@@ -501,6 +513,9 @@ class USDCParser {
 		this.buffer = buffer instanceof ArrayBuffer ? buffer : buffer.buffer;
 		this.reader = new BinaryReader( this.buffer );
 		this.version = { major: 0, minor: 0, patch: 0 };
+
+		this._conversionBuffer = new ArrayBuffer( 4 );
+		this._conversionView = new DataView( this._conversionBuffer );
 
 		this._readBootstrap();
 		this._readTOC();
@@ -1101,6 +1116,7 @@ class USDCParser {
 
 		const type = valueRep.typeEnum;
 		const payload = valueRep.getInlinedValue();
+		const view = this._conversionView;
 
 		switch ( type ) {
 
@@ -1113,18 +1129,16 @@ class USDCParser {
 				return payload;
 			case TypeEnum.Float: {
 
-				const buf = new ArrayBuffer( 4 );
-				new DataView( buf ).setUint32( 0, payload, true );
-				return new DataView( buf ).getFloat32( 0, true );
+				view.setUint32( 0, payload, true );
+				return view.getFloat32( 0, true );
 
 			}
 
 			case TypeEnum.Double: {
 
 				// When a double is inlined, it's stored as float32 bits in the payload
-				const buf = new ArrayBuffer( 4 );
-				new DataView( buf ).setUint32( 0, payload, true );
-				return new DataView( buf ).getFloat32( 0, true );
+				view.setUint32( 0, payload, true );
+				return view.getFloat32( 0, true );
 
 			}
 
@@ -1143,8 +1157,6 @@ class USDCParser {
 			// Vec2h: Two half-floats fit in 4 bytes, stored directly
 			case TypeEnum.Vec2h: {
 
-				const buf = new ArrayBuffer( 4 );
-				const view = new DataView( buf );
 				view.setUint32( 0, payload, true );
 				return [ this._halfToFloat( view.getUint16( 0, true ) ), this._halfToFloat( view.getUint16( 2, true ) ) ];
 
@@ -1155,8 +1167,6 @@ class USDCParser {
 			case TypeEnum.Vec2f:
 			case TypeEnum.Vec2i: {
 
-				const buf = new ArrayBuffer( 4 );
-				const view = new DataView( buf );
 				view.setUint32( 0, payload, true );
 				return [ view.getInt8( 0 ), view.getInt8( 1 ) ];
 
@@ -1165,8 +1175,6 @@ class USDCParser {
 			case TypeEnum.Vec3f:
 			case TypeEnum.Vec3i: {
 
-				const buf = new ArrayBuffer( 4 );
-				const view = new DataView( buf );
 				view.setUint32( 0, payload, true );
 				return [ view.getInt8( 0 ), view.getInt8( 1 ), view.getInt8( 2 ) ];
 
@@ -1175,10 +1183,35 @@ class USDCParser {
 			case TypeEnum.Vec4f:
 			case TypeEnum.Vec4i: {
 
-				const buf = new ArrayBuffer( 4 );
-				const view = new DataView( buf );
 				view.setUint32( 0, payload, true );
 				return [ view.getInt8( 0 ), view.getInt8( 1 ), view.getInt8( 2 ), view.getInt8( 3 ) ];
+
+			}
+
+			case TypeEnum.Matrix2d: {
+
+				// Inlined Matrix2d stores diagonal values as 2 signed int8 values
+				view.setUint32( 0, payload, true );
+				const d0 = view.getInt8( 0 ), d1 = view.getInt8( 1 );
+				return [ d0, 0, 0, d1 ];
+
+			}
+
+			case TypeEnum.Matrix3d: {
+
+				// Inlined Matrix3d stores diagonal values as 3 signed int8 values
+				view.setUint32( 0, payload, true );
+				const d0 = view.getInt8( 0 ), d1 = view.getInt8( 1 ), d2 = view.getInt8( 2 );
+				return [ d0, 0, 0, 0, d1, 0, 0, 0, d2 ];
+
+			}
+
+			case TypeEnum.Matrix4d: {
+
+				// Inlined Matrix4d stores diagonal values as 4 signed int8 values
+				view.setUint32( 0, payload, true );
+				const d0 = view.getInt8( 0 ), d1 = view.getInt8( 1 ), d2 = view.getInt8( 2 ), d3 = view.getInt8( 3 );
+				return [ d0, 0, 0, 0, 0, d1, 0, 0, 0, 0, d2, 0, 0, 0, 0, d3 ];
 
 			}
 
@@ -1434,13 +1467,26 @@ class USDCParser {
 
 			case TypeEnum.PathListOp: {
 
-				// PathListOp format:
-				// Byte 0: flags (bit 0 = hasExplicitItems, bit 1 = hasAddedItems, etc.)
-				// For explicit items: count (uint64) + path indices (uint32 each)
+				// PathListOp format (from AOUSD Core Spec 16.3.10.25):
+				// Header byte bitmask:
+				// - bit 0 (0x01): Make Explicit (clears list)
+				// - bit 1 (0x02): Add Explicit Items
+				// - bit 2 (0x04): Add Items
+				// - bit 3 (0x08): Delete Items
+				// - bit 4 (0x10): Reorder Items
+				// - bit 5 (0x20): Prepend Items
+				// - bit 6 (0x40): Append Items
+				// Arrays follow in order: Explicit, Add, Prepend, Append, Delete, Reorder
+				// Each array: uint64 count + count * uint32 path indices
 				const flags = reader.readUint8();
-				const hasExplicitItems = ( flags & 1 ) !== 0;
+				const hasExplicitItems = ( flags & 0x02 ) !== 0;
+				const hasAddItems = ( flags & 0x04 ) !== 0;
+				const hasDeleteItems = ( flags & 0x08 ) !== 0;
+				const hasReorderItems = ( flags & 0x10 ) !== 0;
+				const hasPrependItems = ( flags & 0x20 ) !== 0;
+				const hasAppendItems = ( flags & 0x40 ) !== 0;
 
-				if ( hasExplicitItems ) {
+				const readPathList = () => {
 
 					const itemCount = reader.readUint64();
 					const paths = [];
@@ -1453,7 +1499,26 @@ class USDCParser {
 
 					return paths;
 
-				}
+				};
+
+				// Read arrays in spec order: Explicit, Add, Prepend, Append, Delete, Reorder
+				let explicitPaths = null;
+				let addPaths = null;
+				let prependPaths = null;
+				let appendPaths = null;
+
+				if ( hasExplicitItems ) explicitPaths = readPathList();
+				if ( hasAddItems ) addPaths = readPathList();
+				if ( hasPrependItems ) prependPaths = readPathList();
+				if ( hasAppendItems ) appendPaths = readPathList();
+				if ( hasDeleteItems ) readPathList(); // Skip delete items
+				if ( hasReorderItems ) readPathList(); // Skip reorder items
+
+				// Return the first non-empty list (connections are typically prepended)
+				if ( prependPaths && prependPaths.length > 0 ) return prependPaths;
+				if ( explicitPaths && explicitPaths.length > 0 ) return explicitPaths;
+				if ( appendPaths && appendPaths.length > 0 ) return appendPaths;
+				if ( addPaths && addPaths.length > 0 ) return addPaths;
 
 				return null;
 
@@ -1721,7 +1786,6 @@ class USDCParser {
 
 	_halfToFloat( h ) {
 
-		// Convert half to float (IEEE 754 half-precision)
 		const sign = ( h & 0x8000 ) >> 15;
 		const exp = ( h & 0x7C00 ) >> 10;
 		const frac = h & 0x03FF;
@@ -1736,7 +1800,7 @@ class USDCParser {
 			}
 
 			// Denormalized: value = ±2^-14 × (frac/1024)
-			return ( sign ? - 1 : 1 ) * Math.pow( 2, - 14 ) * ( frac / 1024 );
+			return ( sign ? - 1 : 1 ) * HALF_DENORM_SCALE * ( frac / 1024 );
 
 		} else if ( exp === 31 ) {
 
@@ -1744,7 +1808,7 @@ class USDCParser {
 
 		}
 
-		return ( sign ? - 1 : 1 ) * Math.pow( 2, exp - 15 ) * ( 1 + frac / 1024 );
+		return ( sign ? - 1 : 1 ) * HALF_EXPONENT_TABLE[ exp ] * ( 1 + frac / 1024 );
 
 	}
 

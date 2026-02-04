@@ -38,6 +38,7 @@
 			let camera, scene, raycaster, renderer;
 
 			let INTERSECTED;
+			let outlineHelper;
 			let theta = 0;
 
 			const pointer = new THREE.Vector2();
@@ -116,10 +117,10 @@
 			function render() {
 				theta += 0.1;
 
-				camera.position.x = radius * Math.sin( THREE.MathUtils.degToRad( theta ) );
-				camera.position.y = radius * Math.sin( THREE.MathUtils.degToRad( theta ) );
-				camera.position.z = radius * Math.cos( THREE.MathUtils.degToRad( theta ) );
-				camera.lookAt( scene.position );
+				// camera.position.x = radius * Math.sin( THREE.MathUtils.degToRad( theta ) );
+				// camera.position.y = radius * Math.sin( THREE.MathUtils.degToRad( theta ) );
+				// camera.position.z = radius * Math.cos( THREE.MathUtils.degToRad( theta ) );
+				// camera.lookAt( scene.position );
 
 				camera.updateMatrixWorld();
 
@@ -136,11 +137,30 @@
 							INTERSECTED.scale.multiplyScalar( 1 / 1.2 );
 						}
 
+						// Remove previous outline
+						if ( outlineHelper ) {
+							scene.remove( outlineHelper );
+							outlineHelper.geometry.dispose();
+							outlineHelper.material.dispose();
+						}
+
 						INTERSECTED = intersects[ 0 ].object;
 						INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-						INTERSECTED.material.emissive.setHex( 0x0000ff );
+						INTERSECTED.material.emissive.setHex( 0xff0000 );
 						// Enlarge by 120%
 						INTERSECTED.scale.multiplyScalar( 1.2 );
+						
+						// Create a square outline
+						const edgesGeometry = new THREE.EdgesGeometry( INTERSECTED.geometry );
+						outlineHelper = new THREE.LineSegments( 
+							edgesGeometry, 
+							new THREE.LineBasicMaterial( { color: 0x000000, linewidth: 20 } ) 
+						);
+						outlineHelper.position.copy( INTERSECTED.position );
+						outlineHelper.rotation.copy( INTERSECTED.rotation );
+						outlineHelper.scale.copy( INTERSECTED.scale );
+						scene.add( outlineHelper );
+
 					}
 				} else {
 					if ( INTERSECTED ) {
@@ -148,6 +168,15 @@
 						// Reset scale to original when no longer intersected
 						INTERSECTED.scale.multiplyScalar( 1 / 1.2 );
 					}
+					
+					// Remove outline when no object is intersected
+					if ( outlineHelper ) {
+						scene.remove( outlineHelper );
+						outlineHelper.geometry.dispose();
+						outlineHelper.material.dispose();
+						outlineHelper = null;
+					}
+					
 					INTERSECTED = null;
 				}
 

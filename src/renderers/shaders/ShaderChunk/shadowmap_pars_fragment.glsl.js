@@ -132,7 +132,7 @@ export default /* glsl */`
 				float radius = shadowRadius * texelSize.x;
 
 				// Use IGN to rotate sampling pattern per pixel
-				float phi = interleavedGradientNoise( gl_FragCoord.xy ) * 6.28318530718; // 2*PI
+				float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;
 
 				shadow = (
 					texture( shadowMap, vec3( shadowCoord.xy + vogelDiskSample( 0, 5, phi ) * radius, shadowCoord.z ) ) +
@@ -155,7 +155,16 @@ export default /* glsl */`
 			float shadow = 1.0;
 
 			shadowCoord.xyz /= shadowCoord.w;
-			shadowCoord.z += shadowBias;
+
+			#ifdef USE_REVERSED_DEPTH_BUFFER
+
+				shadowCoord.z -= shadowBias;
+
+			#else
+
+				shadowCoord.z += shadowBias;
+
+			#endif
 
 			bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;
 			bool frustumTest = inFrustum && shadowCoord.z <= 1.0;
@@ -176,7 +185,7 @@ export default /* glsl */`
 					float hard_shadow = step( shadowCoord.z, mean );
 
 				#endif
-
+				
 				// Early return if fully lit
 				if ( hard_shadow == 1.0 ) {
 
@@ -213,7 +222,16 @@ export default /* glsl */`
 			float shadow = 1.0;
 
 			shadowCoord.xyz /= shadowCoord.w;
-			shadowCoord.z += shadowBias;
+
+			#ifdef USE_REVERSED_DEPTH_BUFFER
+
+				shadowCoord.z -= shadowBias;
+
+			#else
+
+				shadowCoord.z += shadowBias;
+
+			#endif
 
 			bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0 && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;
 			bool frustumTest = inFrustum && shadowCoord.z <= 1.0;
@@ -267,14 +285,14 @@ export default /* glsl */`
 			#ifdef USE_REVERSED_DEPTH_BUFFER
 
 				float dp = ( shadowCameraNear * ( shadowCameraFar - viewSpaceZ ) ) / ( viewSpaceZ * ( shadowCameraFar - shadowCameraNear ) );
+				dp -= shadowBias;
 
 			#else
 
 				float dp = ( shadowCameraFar * ( viewSpaceZ - shadowCameraNear ) ) / ( viewSpaceZ * ( shadowCameraFar - shadowCameraNear ) );
+				dp += shadowBias;
 
 			#endif
-			
-			dp += shadowBias;
 
 			// Hardware PCF with LinearFilter gives us 4-tap filtering per sample
 			// Use Vogel disk + IGN sampling for better quality
@@ -287,7 +305,7 @@ export default /* glsl */`
 			vec3 bitangent = cross( bd3D, tangent );
 
 			// Use IGN to rotate sampling pattern per pixel
-			float phi = interleavedGradientNoise( gl_FragCoord.xy ) * 6.28318530718;
+			float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;
 
 			vec2 sample0 = vogelDiskSample( 0, 5, phi );
 			vec2 sample1 = vogelDiskSample( 1, 5, phi );
@@ -328,16 +346,7 @@ export default /* glsl */`
 
 			// viewZ to perspective depth
 
-			#ifdef USE_REVERSED_DEPTH_BUFFER
-
-				float dp = ( shadowCameraNear * ( shadowCameraFar - viewSpaceZ ) ) / ( viewSpaceZ * ( shadowCameraFar - shadowCameraNear ) );
-
-			#else
-
-				float dp = ( shadowCameraFar * ( viewSpaceZ - shadowCameraNear ) ) / ( viewSpaceZ * ( shadowCameraFar - shadowCameraNear ) );
-
-			#endif
-
+			float dp = ( shadowCameraFar * ( viewSpaceZ - shadowCameraNear ) ) / ( viewSpaceZ * ( shadowCameraFar - shadowCameraNear ) );
 			dp += shadowBias;
 
 			// Direction from light to fragment
@@ -347,13 +356,11 @@ export default /* glsl */`
 
 			#ifdef USE_REVERSED_DEPTH_BUFFER
 
-				shadow = step( depth, dp );
-
-			#else
-
-				shadow = step( dp, depth );
+				depth = 1.0 - depth;
 
 			#endif
+
+			shadow = step( dp, depth );
 
 		}
 
