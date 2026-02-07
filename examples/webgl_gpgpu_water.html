@@ -32,7 +32,7 @@
 				textureValue += texture2D( smoothTexture, uv + vec2( cellSize.x, 0.0 ) );
 				textureValue += texture2D( smoothTexture, uv + vec2( - cellSize.x, 0.0 ) );
 
-				textureValue /= 5.0;
+				textureValue /= 8.0;
 
 				gl_FragColor = textureValue;
 
