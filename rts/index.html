@@ -81,7 +81,7 @@
 
 	#placement-hint {
 		position: absolute;
-		bottom: 100px;
+		bottom: 10px;
 		left: 50%;
 		transform: translateX(-50%);
 		color: rgba(180, 210, 255, 0.7);
@@ -188,7 +188,7 @@
 		}
 
 		function createStarfield() {
-			const starCount = 2000;
+			const starCount = 5000;
 			const positions = new Float32Array(starCount * 3);
 			const sizes = new Float32Array(starCount);
 			for (let i = 0; i < starCount; i++) {
@@ -481,6 +481,8 @@
 				item.appendChild(label);
 
 				item.addEventListener('click', () => {
+					console.log(`Selected unit: ${type}`);
+					console.log(`selectedUnit before: ${selectedUnit}`);
 					document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
 
 					if (selectedUnit === type) {
