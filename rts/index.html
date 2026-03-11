@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js webgl - GLTFloader</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
+<style>
+	#menu {
+		position: absolute;
+		bottom: 10px;
+		left: calc((100% - 600px) / 2);
+		background-color: rgba(7, 91, 209, 0.8);
+		padding: 10px;
+		border-radius: 4px;
+		width: 600px;
+		opacity: 0.8;
+	}
+
+	#menu table {
+		border-collapse: collapse;
+	}
+</style>
+
+<body>
+	<div id="menu">
+		<table>
+			<tr>
+				<td>
+					<table>
+						<tr>
+							<td>
+								<img src="image/menu/Air_factory.webp" alt="Air Factory" width="64" height="64">
+							</td>
+							<td>
+								<img src="image/menu/Air_factory.webp" alt="Air Factory" width="64" height="64">
+							</td>
+							<td>
+								<img src="image/menu/Air_factory.webp" alt="Air Factory" width="64" height="64">
+							</td>
+						</tr>
+						<tr><td colspan="3" style="text-align: center;">Factory</td></tr>
+					</table>
+				</td>
+				<td>
+					<table>
+						<tr></tr>
+						<tr><td>Combat</td></tr>
+					</table>
+				</td>
+				<td>
+					<table>
+						<tr></tr>
+						<tr><td>Utility</td></tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<script type="importmap">
+			{
+				"imports": {
+					"three": "../build/three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+	</script>
+	<script type="module">
+		import * as THREE from 'three';
+
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+		// import { UltraHDRLoader } from 'three/addons/loaders/UltraHDRLoader.js';
+		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+		import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+		let camera, scene, renderer, controls;
+		let currentModel, mixer;
+		let currentLoadId = 0;
+
+		const timer = new THREE.Timer();
+
+		init();
+
+		function init() {
+
+			const container = document.createElement('div');
+			document.body.appendChild(container);
+
+			camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.25, 20);
+			camera.position.set(- 1.8, 0.6, 2.7);
+
+			scene = new THREE.Scene();
+
+			/*new UltraHDRLoader()
+				.setPath('textures/equirectangular/')
+				.load('royal_esplanade_2k.hdr.jpg', function (texture) {
+
+					texture.mapping = THREE.EquirectangularReflectionMapping;
+
+					scene.background = texture;
+					scene.environment = texture;
+
+					render();
+				});
+			*/
+
+			// model
+			/*
+			fetch('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/model-index.json')
+				.then(response => response.json())
+				.then(models => {
+
+					const gui = new GUI();
+					const modelNames = models.map(m => m.name);
+					const params = { model: 'DamagedHelmet' };
+
+					if (!modelNames.includes(params.model) && modelNames.length > 0) {
+						params.model = modelNames[0];
+					}
+
+					gui.add(params, 'model', modelNames).onChange(name => {
+						const modelInfo = models.find(m => m.name === name);
+						loadModel(modelInfo);
+					});
+
+					gui.add(scene, 'backgroundBlurriness', 0, 1);
+
+					const initialModel = models.find(m => m.name === params.model);
+					if (initialModel) loadModel(initialModel);
+
+				});
+			*/
+
+			// gray sphere
+			const sphereGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+			const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
+			const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+			scene.add(sphere);
+
+			// load ship
+			const loader = new STLLoader();
+			loader.load( './model/PAT_Destroyer.stl', function ( geometry ) {
+				const material = new THREE.MeshPhongMaterial( { color: 0xff9c7c, specular: 0x494949, shininess: 200 } );
+				const mesh = new THREE.Mesh( geometry, material );
+
+				mesh.rotation.set( - Math.PI / 2, - Math.PI / 2, 0 );
+				mesh.scale.set(0.01, 0.01, 0.01);
+				mesh.position.set( 0, 0, 0 );
+
+				scene.add( mesh );
+
+				// move ship so its bottom rests on the sphere surface (radius = 0.5)
+				const bbox = new THREE.Box3().setFromObject( mesh );
+				mesh.position.y = 0.5 - bbox.min.y;
+
+				mesh.castShadow = true;
+				mesh.receiveShadow = true;
+			} );
+
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setAnimationLoop(render);
+			renderer.toneMapping = THREE.ACESFilmicToneMapping;
+			container.appendChild(renderer.domElement);
+
+			controls = new OrbitControls(camera, renderer.domElement);
+			controls.enableDamping = true;
+			controls.minDistance = 2;
+			controls.maxDistance = 10;
+			controls.target.set(0, 0, - 0.2);
+			controls.update();
+
+			// ambient + directional light so the sphere is visible
+			const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+			scene.add(ambientLight);
+
+			const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+			dirLight.position.set(5, 10, 7.5);
+			scene.add(dirLight);
+
+			window.addEventListener('resize', onWindowResize);
+		}
+
+		function loadModel(modelInfo) {
+			const variants = modelInfo.variants;
+			const variant = variants['glTF-Binary'] || variants['glTF'];
+			const url = `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/${modelInfo.name}/${variant.endsWith('.glb') ? 'glTF-Binary' : 'glTF'}/${variant}`;
+
+			if (currentModel) {
+				scene.remove(currentModel);
+				currentModel = null;
+			}
+
+			if (mixer) {
+				mixer.stopAllAction();
+				mixer = null;
+			}
+
+			const loadId = ++currentLoadId;
+
+			const loader = new GLTFLoader();
+			loader.load(url, async function (gltf) {
+				if (loadId !== currentLoadId) return;
+				currentModel = gltf.scene;
+				// wait until the model can be added to the scene without blocking due to shader compilation
+
+				await renderer.compileAsync(currentModel, camera, scene);
+				if (loadId !== currentLoadId) return;
+
+				scene.add(currentModel);
+				fitCameraToSelection(camera, controls, currentModel);
+
+				// animations
+				if (gltf.animations.length > 0) {
+					mixer = new THREE.AnimationMixer(currentModel);
+					for (const animation of gltf.animations) {
+						mixer.clipAction(animation).play();
+					}
+				}
+			});
+		}
+
+		function fitCameraToSelection(camera, controls, selection, fitOffset = 1.3) {
+
+			const box = new THREE.Box3();
+			box.setFromObject(selection);
+
+			const size = box.getSize(new THREE.Vector3());
+			const center = box.getCenter(new THREE.Vector3());
+
+			const maxSize = Math.max(size.x, size.y, size.z);
+			const fitHeightDistance = maxSize / (2 * Math.atan(Math.PI * camera.fov / 360));
+			// const fitWidthDistance = fitHeightDistance / camera.aspect;
+			// const distance = fitOffset * Math.max( fitHeightDistance, fitWidthDistance );
+			const distance = fitOffset * fitHeightDistance;
+
+			const direction = controls.target.clone().sub(camera.position).normalize().multiplyScalar(distance);
+
+			controls.maxDistance = distance * 10;
+			controls.minDistance = distance / 10;
+			controls.target.copy(center);
+
+			camera.near = distance / 100;
+			camera.far = distance * 100;
+			camera.updateProjectionMatrix();
+
+			camera.position.copy(controls.target).sub(direction);
+
+			controls.update();
+
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			render();
+		}
+
+		function render() {
+			timer.update();
+			controls.update();
+			if (mixer) mixer.update(timer.getDelta());
+			renderer.render(scene, camera);
+		}
+	</script>
+</body>
+
+</html>
