@@ -67,7 +67,7 @@
 
 						const gui = new GUI();
 
-						gui.add( points.material, 'size', 0.001, 0.01 ).onChange( render );
+						gui.add( points.material, 'size', 0.001, 0.05 ).onChange( render );
 						gui.addColor( points.material, 'color' ).onChange( render );
 						gui.add( points, 'name', [
 							'ascii/simple.pcd',

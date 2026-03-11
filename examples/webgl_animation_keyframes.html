@@ -1,7 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 	<head>
 		<title>three.js webgl - animation - keyframes</title>
 		<meta charset="utf-8">
@@ -9,11 +12,16 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 		<style>
 			body {
+<<<<<<< HEAD
 				background-color: #e2e0e0;
+=======
+				background-color: #6ec7fa;
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 				color: #000;
 			}
 >>>>>>> e90650f919f58316ee38e63b4fd1b15785d58a02
 
+<<<<<<< HEAD
 <head>
 	<title>three.js webgl - animation - keyframes</title>
 	<meta charset="utf-8">
@@ -35,7 +43,62 @@
 
 	<div id="container"></div>
 	<!-- 
+=======
+			a {
+				color: #2983ff;
+			}
+
+			#toggleButton {
+				position: absolute;
+				top: 20px;
+				right: 20px;
+				padding: 10px 20px;
+				background-color: #2983ff;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+				font-size: 14px;
+				z-index: 100;
+			}
+
+			#toggleButton:hover {
+				background-color: #1a6bdb;
+			}
+		</style>
+	</head>
+=======
+
+<head>
+	<title>three.js webgl - animation - keyframes</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+	<style>
+		body {
+			background-color: #bfe3dd;
+			color: #000;
+		}
+>>>>>>> 64cb4a5cb2d158093a2dcea632fa17a569248bf2
+
+		a {
+			color: #2983ff;
+		}
+	</style>
+</head>
+
+<<<<<<< HEAD
+		<div id="container"></div>
+
+		<button id="toggleButton">Toggle Object675 Animation</button>
+
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 		<div id="info">
+=======
+<body>
+	<div id="container"></div>
+	<!-- <div id="info">
+>>>>>>> 64cb4a5cb2d158093a2dcea632fa17a569248bf2
 			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - animation - keyframes<br/>
 			Model: <a href="https://artstation.com/artwork/1AGwX" target="_blank" rel="noopener">Littlest Tokyo</a> by
 			<a href="https://artstation.com/glenatron" target="_blank" rel="noopener">Glen Fox</a>, CC Attribution.
@@ -48,8 +111,11 @@
 					"three/addons/": "./jsm/"
 				}
 			}
-		</script>
+	</script>
+	<script type="module">
+		import * as THREE from 'three';
 
+<<<<<<< HEAD
 	<script type="module">
 		import * as THREE from 'three';
 		import Stats from 'three/addons/libs/stats.module.js';
@@ -146,35 +212,120 @@
 
 			console.error(e);
 
+=======
+		import Stats from 'three/addons/libs/stats.module.js';
+
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+		import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+		let mixer;
+
+		const clock = new THREE.Clock();
+		const container = document.getElementById('container');
+
+<<<<<<< HEAD
+			let mixer;
+			let object675Action = null;
+			let isObject675Playing = true;
+=======
+		const stats = new Stats();
+		container.appendChild(stats.dom);
+>>>>>>> 64cb4a5cb2d158093a2dcea632fa17a569248bf2
+
+		const renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setPixelRatio(window.devicePixelRatio);
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		container.appendChild(renderer.domElement);
+
+		const pmremGenerator = new THREE.PMREMGenerator(renderer);
+
+		const scene = new THREE.Scene();
+		scene.background = new THREE.Color(0xbfe3dd);
+		scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+		const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 100);
+		camera.position.set(5, 2, 8);
+
+		const controls = new OrbitControls(camera, renderer.domElement);
+		controls.target.set(0, 0.5, 0);
+		controls.update();
+		controls.enablePan = false;
+		controls.enableDamping = true;
+
+<<<<<<< HEAD
+			const camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100 );
+			camera.position.set( 5, 5, 5 );
+=======
+		const dracoLoader = new DRACOLoader();
+		dracoLoader.setDecoderPath('jsm/libs/draco/gltf/');
+>>>>>>> 64cb4a5cb2d158093a2dcea632fa17a569248bf2
+
+		const loader = new GLTFLoader();
+		loader.setDRACOLoader(dracoLoader);
+		// loader.load('models/gltf/LittlestTokyo.glb', function (gltf) {
+		loader.load('models/quantr/monkey.glb', function (gltf) {
+			// scene.add(gltf.scene);
+
+			const model = gltf.scene;
+			model.position.set(0, 0, 0);
+			model.scale.set(1, 1, 1);
+			scene.add(model);
+
+			// mixer = new THREE.AnimationMixer(model);
+			// // mixer.clipAction(gltf.animations[0]).play();
+
+			renderer.setAnimationLoop(animate);
+
+		}, undefined, function (e) {
+			console.error(e);
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 		});
 
 
 		window.onresize = function () {
+<<<<<<< HEAD
 
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
 
 			renderer.setSize(window.innerWidth, window.innerHeight);
 
+=======
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 		};
 
 
 		function animate() {
+<<<<<<< HEAD
 			const delta = clock.getDelta();
 			mixer.update(delta);
+=======
+			// const delta = clock.getDelta();
+			// mixer.update(delta);
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 			controls.update();
 			stats.update();
 			renderer.render(scene, camera);
 		}
 	</script>
 </body>
+<<<<<<< HEAD
 </html>
 =======
 			const controls = new OrbitControls( camera, renderer.domElement );
 			controls.enableDamping = true;
 			controls.target.set( 0, 0.7, 0 );
 			controls.update();
+=======
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
 
+<<<<<<< HEAD
 			const dracoLoader = new DRACOLoader();
 			dracoLoader.setDecoderPath( 'jsm/libs/draco/gltf/' );
 
@@ -187,8 +338,39 @@
 				model.scale.set( 0.01, 0.01, 0.01 );
 				scene.add( model );
 
-				mixer = new THREE.AnimationMixer( model );
-				mixer.clipAction( gltf.animations[ 0 ] ).play();
+				// Find Object675 in the model
+				const object675 = model.getObjectByName( 'Object675' );
+				if ( object675 ) {
+					console.log( 'Found Object675:', object675 );
+					mixer = new THREE.AnimationMixer( object675 );
+					
+					// Find animation for Object675
+					if ( gltf.animations.length > 0 ) {
+						object675Action = mixer.clipAction( gltf.animations[ 0 ] );
+						object675Action.play();
+					}
+				} else {
+					console.log( 'Object675 not found, using default animation' );
+					mixer = new THREE.AnimationMixer( model );
+					mixer.clipAction( gltf.animations[ 0 ] ).play();
+				}
+
+				// Set up button click handler
+				document.getElementById( 'toggleButton' ).addEventListener( 'click', function() {
+					if ( object675Action ) {
+						if ( isObject675Playing ) {
+							object675Action.paused = true;
+							isObject675Playing = false;
+							document.getElementById( 'toggleButton' ).textContent = 'Play Object675 Animation';
+						} else {
+							object675Action.paused = false;
+							isObject675Playing = true;
+							document.getElementById( 'toggleButton' ).textContent = 'Pause Object675 Animation';
+						}
+					} else {
+						console.log( 'No Object675 action available' );
+					}
+				});
 
 				renderer.setAnimationLoop( animate );
 
@@ -229,4 +411,10 @@
 	</body>
 
 </html>
+<<<<<<< HEAD
 >>>>>>> e90650f919f58316ee38e63b4fd1b15785d58a02
+=======
+=======
+</html>
+>>>>>>> 64cb4a5cb2d158093a2dcea632fa17a569248bf2
+>>>>>>> 3f348c9198e50ea7f5ea1ba40289a7cf1e8ce4b1
