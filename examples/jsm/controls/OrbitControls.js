@@ -391,6 +391,8 @@ class OrbitControls extends Controls {
 		 */
 		this.zoom0 = this.object.zoom;
 
+		this._cursorStyle = 'auto';
+
 		// the target DOM element for key events
 		this._domElementKeyEvents = null;
 
@@ -462,6 +464,34 @@ class OrbitControls extends Controls {
 
 	}
 
+	/**
+	 * Defines the visual representation of the cursor.
+	 *
+	 * @type {('auto'|'grab')}
+	 * @default 'auto'
+	 */
+	set cursorStyle( type ) {
+
+		this._cursorStyle = type;
+
+		if ( type === 'grab' ) {
+
+			this.domElement.style.cursor = 'grab';
+
+		} else {
+
+			this.domElement.style.cursor = 'auto';
+
+		}
+
+	}
+
+	get cursorStyle() {
+
+		return this._cursorStyle;
+
+	}
+
 	connect( element ) {
 
 		super.connect( element );
@@ -475,7 +505,7 @@ class OrbitControls extends Controls {
 		const document = this.domElement.getRootNode(); // offscreen canvas compatibility
 		document.addEventListener( 'keydown', this._interceptControlDown, { passive: true, capture: true } );
 
-		this.domElement.style.touchAction = 'none'; // disable touch scroll
+		this.domElement.style.touchAction = 'none'; // Disable touch scroll
 
 	}
 
@@ -494,7 +524,7 @@ class OrbitControls extends Controls {
 		const document = this.domElement.getRootNode(); // offscreen canvas compatibility
 		document.removeEventListener( 'keydown', this._interceptControlDown, { capture: true } );
 
-		this.domElement.style.touchAction = 'auto';
+		this.domElement.style.touchAction = ''; // Restore touch scroll
 
 	}
 
@@ -1542,6 +1572,12 @@ function onPointerDown( event ) {
 
 	}
 
+	if ( this._cursorStyle === 'grab' ) {
+
+		this.domElement.style.cursor = 'grabbing';
+
+	}
+
 }
 
 function onPointerMove( event ) {
@@ -1576,6 +1612,12 @@ function onPointerUp( event ) {
 			this.dispatchEvent( _endEvent );
 
 			this.state = _STATE.NONE;
+
+			if ( this._cursorStyle === 'grab' ) {
+
+				this.domElement.style.cursor = 'grab';
+
+			}
 
 			break;
 

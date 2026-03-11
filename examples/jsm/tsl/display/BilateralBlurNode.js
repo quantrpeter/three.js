@@ -1,5 +1,5 @@
 import { RenderTarget, Vector2, NodeMaterial, RendererUtils, QuadMesh, TempNode, NodeUpdateType } from 'three/webgpu';
-import { nodeObject, Fn, float, uv, uniform, convertToTexture, vec2, vec4, passTexture, luminance, abs, exp, max } from 'three/tsl';
+import { Fn, float, uv, uniform, convertToTexture, vec2, vec4, passTexture, luminance, abs, exp, max } from 'three/tsl';
 
 const _quadMesh = /*@__PURE__*/ new QuadMesh();
 
@@ -111,6 +111,14 @@ class BilateralBlurNode extends TempNode {
 		 */
 		this._textureNode = passTexture( this, this._verticalRT.texture );
 		this._textureNode.uvNode = textureNode.uvNode;
+
+		/**
+		 * The material for the blur pass.
+		 *
+		 * @private
+		 * @type {?NodeMaterial}
+		 */
+		this._material = null;
 
 		/**
 		 * The `updateBeforeType` is set to `NodeUpdateType.FRAME` since the node renders
@@ -318,6 +326,8 @@ class BilateralBlurNode extends TempNode {
 		this._horizontalRT.dispose();
 		this._verticalRT.dispose();
 
+		if ( this._material !== null ) this._material.dispose();
+
 	}
 
 	/**
@@ -361,4 +371,4 @@ export default BilateralBlurNode;
  * @param {number} sigmaColor - Controls the intensity kernel. Higher values allow more color difference to be blurred together.
  * @returns {BilateralBlurNode}
  */
-export const bilateralBlur = ( node, directionNode, sigma, sigmaColor ) => nodeObject( new BilateralBlurNode( convertToTexture( node ), directionNode, sigma, sigmaColor ) );
+export const bilateralBlur = ( node, directionNode, sigma, sigmaColor ) => new BilateralBlurNode( convertToTexture( node ), directionNode, sigma, sigmaColor );

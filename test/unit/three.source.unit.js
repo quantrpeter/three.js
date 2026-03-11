@@ -265,12 +265,6 @@ import './src/renderers/webgl/WebGLTextures.tests.js';
 import './src/renderers/webgl/WebGLUniforms.tests.js';
 import './src/renderers/webgl/WebGLUtils.tests.js';
 
-//src/renderers/webgpu/nodes
-import './src/renderers/webgpu/nodes/WGSLNodeBuilder.tests.js';
-
-//src/nodes/accessors
-import './src/nodes/accessors/StorageTextureNode.tests.js';
-
 
 //src/scenes
 import './src/scenes/Fog.tests.js';
@@ -291,3 +285,8 @@ import './src/textures/FramebufferTexture.tests.js';
 import './src/textures/Source.tests.js';
 import './src/textures/Texture.tests.js';
 import './src/textures/VideoTexture.tests.js';
+
+
+//src/nodes/display
+import './src/nodes/display/ViewportTextureNode.tests.js';
+import './src/nodes/display/ViewportDepthTextureNode.tests.js';

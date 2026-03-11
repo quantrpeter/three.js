@@ -393,9 +393,6 @@ class NodeMaterialObserver {
 		const attributes = geometry.attributes;
 		const storedAttributes = storedGeometryData.attributes;
 
-		const storedAttributeNames = Object.keys( storedAttributes );
-		const currentAttributeNames = Object.keys( attributes );
-
 		if ( storedGeometryData.id !== geometry.id ) {
 
 			storedGeometryData.id = geometry.id;
@@ -403,16 +400,16 @@ class NodeMaterialObserver {
 
 		}
 
-		if ( storedAttributeNames.length !== currentAttributeNames.length ) {
+		// attributes
 
-			renderObjectData.geometry.attributes = this.getAttributesData( attributes );
-			return false;
+		let currentAttributeCount = 0;
+		let storedAttributeCount = 0;
 
-		}
+		for ( const _ in attributes ) currentAttributeCount ++; // eslint-disable-line no-unused-vars
 
-		// compare each attribute
+		for ( const name in storedAttributes ) {
 
-		for ( const name of storedAttributeNames ) {
+			storedAttributeCount ++;
 
 			const storedAttributeData = storedAttributes[ name ];
 			const attribute = attributes[ name ];
@@ -435,17 +432,24 @@ class NodeMaterialObserver {
 
 		}
 
+		if ( storedAttributeCount !== currentAttributeCount ) {
+
+			renderObjectData.geometry.attributes = this.getAttributesData( attributes );
+			return false;
+
+		}
+
 		// check index
 
 		const index = geometry.index;
-		const storedIndexId = storedGeometryData.id;
+		const storedIndexId = storedGeometryData.indexId;
 		const storedIndexVersion = storedGeometryData.indexVersion;
 		const currentIndexId = index ? index.id : null;
 		const currentIndexVersion = index ? index.version : null;
 
 		if ( storedIndexId !== currentIndexId || storedIndexVersion !== currentIndexVersion ) {
 
-			storedGeometryData.id = currentIndexId;
+			storedGeometryData.indexId = currentIndexId;
 			storedGeometryData.indexVersion = currentIndexVersion;
 			return false;
 

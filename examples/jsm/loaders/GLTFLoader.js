@@ -83,8 +83,11 @@ import { clone } from '../utils/SkeletonUtils.js';
  *
  * `GLTFLoader` supports the following glTF 2.0 extensions:
  * - KHR_draco_mesh_compression
+ * - KHR_lights_punctual
+ * - KHR_materials_anisotropy
  * - KHR_materials_clearcoat
  * - KHR_materials_dispersion
+ * - KHR_materials_emissive_strength
  * - KHR_materials_ior
  * - KHR_materials_specular
  * - KHR_materials_transmission
@@ -93,12 +96,13 @@ import { clone } from '../utils/SkeletonUtils.js';
  * - KHR_materials_volume
  * - KHR_mesh_quantization
  * - KHR_meshopt_compression
- * - KHR_lights_punctual
  * - KHR_texture_basisu
  * - KHR_texture_transform
- * - EXT_texture_webp
+ * - EXT_materials_bump
  * - EXT_meshopt_compression
  * - EXT_mesh_gpu_instancing
+ * - EXT_texture_avif
+ * - EXT_texture_webp
  *
  * The following glTF 2.0 extension is supported by an external user plugin:
  * - [KHR_materials_variants](https://github.com/takahirox/three-gltf-extensions)
@@ -1268,6 +1272,8 @@ class GLTFMaterialsIorExtension {
 		if ( extension === null ) return Promise.resolve();
 
 		materialParams.ior = extension.ior !== undefined ? extension.ior : 1.5;
+
+		if ( materialParams.ior === 0 ) materialParams.ior = 1000; // see #26167
 
 		return Promise.resolve();
 
@@ -4235,6 +4241,28 @@ class GLTFParser {
 
 			}
 
+			// Reconstruct pivot from container pattern created by GLTFExporter
+			// The container has position+pivot, rotation, scale; child has -pivot offset and mesh
+			if ( node.userData.pivot !== undefined && children.length > 0 ) {
+
+				const pivot = node.userData.pivot;
+				const pivotChild = children[ 0 ];
+
+				// Set pivot on container and adjust transforms
+				node.pivot = new Vector3().fromArray( pivot );
+
+				// Adjust container position: stored as position + pivot, so subtract pivot
+				node.position.x -= pivot[ 0 ];
+				node.position.y -= pivot[ 1 ];
+				node.position.z -= pivot[ 2 ];
+
+				// Remove the child's -pivot offset since pivot now handles it
+				pivotChild.position.set( 0, 0, 0 );
+
+				delete node.userData.pivot;
+
+			}
+
 			return node;
 
 		} );
@@ -4490,17 +4518,28 @@ class GLTFParser {
 		const targetName = node.name ? node.name : node.uuid;
 		const targetNames = [];
 
+		function collectMorphTargets( object ) {
+
+			if ( object.morphTargetInfluences ) {
+
+				targetNames.push( object.name ? object.name : object.uuid );
+
+			}
+
+		}
+
+
 		if ( PATH_PROPERTIES[ target.path ] === PATH_PROPERTIES.weights ) {
 
-			node.traverse( function ( object ) {
+			collectMorphTargets( node );
 
-				if ( object.morphTargetInfluences ) {
+			// for multi-primitive meshes, the node is a Group containing the sub-meshes
 
-					targetNames.push( object.name ? object.name : object.uuid );
+			if ( node.isGroup ) {
 
-				}
+				node.children.forEach( collectMorphTargets );
 
-			} );
+			}
 
 		} else {
 

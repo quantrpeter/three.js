@@ -15,9 +15,10 @@ class Pipelines extends DataMap {
 	 * Constructs a new pipeline management component.
 	 *
 	 * @param {Backend} backend - The renderer's backend.
-	 * @param {Nodes} nodes - Renderer component for managing nodes related logic.
+	 * @param {NodeManager} nodes - Renderer component for managing nodes related logic.
+	 * @param {Info} info - Renderer component for managing metrics and monitoring data.
 	 */
-	constructor( backend, nodes ) {
+	constructor( backend, nodes, info ) {
 
 		super();
 
@@ -31,9 +32,16 @@ class Pipelines extends DataMap {
 		/**
 		 * Renderer component for managing nodes related logic.
 		 *
-		 * @type {Nodes}
+		 * @type {NodeManager}
 		 */
 		this.nodes = nodes;
+
+		/**
+		 * Renderer component for managing metrics and monitoring data.
+		 *
+		 * @type {Info}
+		 */
+		this.info = info;
 
 		/**
 		 * A references to the bindings management component.
@@ -235,6 +243,26 @@ class Pipelines extends DataMap {
 	}
 
 	/**
+	 * Checks if the render pipeline for the given render object is ready for drawing.
+	 * Returns false if the GPU pipeline is still being compiled asynchronously.
+	 *
+	 * @param {RenderObject} renderObject - The render object.
+	 * @return {boolean} True if the pipeline is ready for drawing.
+	 */
+	isReady( renderObject ) {
+
+		const data = this.get( renderObject );
+		const pipeline = data.pipeline;
+
+		if ( pipeline === undefined ) return false;
+
+		const pipelineData = this.backend.get( pipeline );
+
+		return pipelineData.pipeline !== undefined && pipelineData.pipeline !== null;
+
+	}
+
+	/**
 	 * Deletes the pipeline for the given render object.
 	 *
 	 * @param {RenderObject} object - The render object.
@@ -329,6 +357,8 @@ class Pipelines extends DataMap {
 
 			this.backend.createComputePipeline( pipeline, bindings );
 
+			this.info.memory.programs ++;
+
 		}
 
 		return pipeline;
@@ -367,6 +397,8 @@ class Pipelines extends DataMap {
 			// pending promises that resolve when the render pipelines are ready for rendering.
 
 			this.backend.createRenderPipeline( renderObject, promises );
+
+			this.info.memory.programs ++;
 
 		}
 
@@ -412,6 +444,8 @@ class Pipelines extends DataMap {
 	_releasePipeline( pipeline ) {
 
 		this.caches.delete( pipeline.cacheKey );
+
+		this.info.memory.programs --;
 
 	}
 

@@ -461,7 +461,7 @@ class ShaderCallNodeInternal extends Node {
 
 	}
 
-	getNodeType( builder ) {
+	generateNodeType( builder ) {
 
 		return this.shaderNode.nodeType || this.getOutputNode( builder ).getNodeType( builder );
 
@@ -917,7 +917,25 @@ const ConvertType = function ( type, cacheMap = null ) {
 
 // exports
 
-export const defined = ( v ) => typeof v === 'object' && v !== null ? v.value : v; // TODO: remove boolean conversion and defined function
+export function defined( value ) {
+
+	if ( value && value.isNode ) {
+
+		value.traverse( ( node ) => {
+
+			if ( node.isConstNode ) {
+
+				value = node.value;
+
+			}
+
+		} );
+
+	}
+
+	return Boolean( value );
+
+}
 
 // utils
 
@@ -1018,7 +1036,7 @@ class FnNode extends Node {
 
 	}
 
-	getNodeType( builder ) {
+	generateNodeType( builder ) {
 
 		return this.shaderNode.getNodeType( builder ) || 'float';
 
@@ -1201,8 +1219,8 @@ addMethodChaining( 'toMat4', mat4 );
 // basic nodes
 
 export const element = /*@__PURE__*/ nodeProxy( ArrayElementNode ).setParameterLength( 2 );
-export const convert = ( node, types ) => nodeObject( new ConvertNode( nodeObject( node ), types ) );
-export const split = ( node, channels ) => nodeObject( new SplitNode( nodeObject( node ), channels ) );
+export const convert = ( node, types ) => new ConvertNode( nodeObject( node ), types );
+export const split = ( node, channels ) => new SplitNode( nodeObject( node ), channels );
 
 addMethodChaining( 'element', element );
 addMethodChaining( 'convert', convert );

@@ -93,8 +93,10 @@ function Editor() {
 
 		pathTracerUpdated: new Signal(),
 
-		morphTargetsUpdated: new Signal()
+		animationPanelChanged: new Signal(),
+		animationPanelResized: new Signal(),
 
+		morphTargetsUpdated: new Signal()
 
 	};
 
@@ -551,7 +553,7 @@ Editor.prototype = {
 
 	setViewportCamera: function ( uuid ) {
 
-		this.viewportCamera = this.cameras[ uuid ];
+		this.viewportCamera = this.cameras[ uuid ] || this.camera;
 		this.signals.viewportCameraChanged.dispatch();
 
 	},
