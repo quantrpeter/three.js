@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>Planetary Annihilation RTS</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
+<style>
+	#menu {
+		position: absolute;
+		bottom: 16px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: linear-gradient(180deg, rgba(10, 60, 140, 0.85) 0%, rgba(5, 30, 80, 0.95) 100%);
+		padding: 8px 16px;
+		border-radius: 8px;
+		border: 1px solid rgba(100, 180, 255, 0.3);
+		display: flex;
+		gap: 12px;
+		z-index: 10;
+		user-select: none;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+	}
+
+	.menu-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		cursor: pointer;
+		padding: 8px 12px;
+		border-radius: 6px;
+		border: 2px solid transparent;
+		transition: all 0.15s ease;
+		min-width: 80px;
+	}
+
+	.menu-item:hover {
+		background: rgba(100, 180, 255, 0.15);
+		border-color: rgba(100, 180, 255, 0.3);
+	}
+
+	.menu-item.selected {
+		background: rgba(100, 180, 255, 0.25);
+		border-color: rgba(100, 200, 255, 0.7);
+		box-shadow: 0 0 12px rgba(100, 180, 255, 0.3);
+	}
+
+	.menu-item canvas {
+		border-radius: 4px;
+		margin-bottom: 4px;
+	}
+
+	.menu-item .label {
+		color: #b0d4ff;
+		font-family: 'Segoe UI', Arial, sans-serif;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+	}
+
+	.menu-item.selected .label {
+		color: #ffffff;
+	}
+
+	#unit-count {
+		position: absolute;
+		top: 12px;
+		right: 16px;
+		color: #b0d4ff;
+		font-family: 'Segoe UI', Arial, sans-serif;
+		font-size: 13px;
+		z-index: 10;
+		background: rgba(5, 30, 80, 0.8);
+		padding: 8px 14px;
+		border-radius: 6px;
+		border: 1px solid rgba(100, 180, 255, 0.2);
+	}
+
+	#placement-hint {
+		position: absolute;
+		bottom: 115px;
+		left: 50%;
+		transform: translateX(-50%);
+		color: rgba(180, 210, 255, 0.7);
+		font-family: 'Segoe UI', Arial, sans-serif;
+		font-size: 12px;
+		z-index: 10;
+		pointer-events: none;
+		transition: opacity 0.3s;
+		background: rgba(5, 30, 80, 0.6);
+		padding: 4px 12px;
+		border-radius: 4px;
+		white-space: nowrap;
+	}
+</style>
+
+<body>
+	<div id="unit-count">Units: 0</div>
+	<div id="placement-hint">Select a unit type below to place, or click a placed unit to command it</div>
+	<div id="menu"></div>
+
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "../build/three.module.js",
+				"three/addons/": "./jsm/"
+			}
+		}
+	</script>
+	<script type="module">
+		import * as THREE from 'three';
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+		let camera, scene, renderer, controls;
+		let planet, planetRadius = 3;
+		let placedUnits = [];
+		let selectedUnit = null;
+		let shipGeometry = null;
+		let ghostMesh = null;
+		let activeUnit = null;
+		let selectionBox = null;
+		const raycaster = new THREE.Raycaster();
+		const mouse = new THREE.Vector2();
+		const clock = new THREE.Clock();
+		const pointerDownPos = new THREE.Vector2();
+		let wasClick = false;
+
+		const UNIT_SCALE = 0.06;
+
+		const unitTypes = {
+			ship:  { color: 0xff9c7c, accent: 0xff6040, label: 'Ship',  speed: 0.8, localForward: new THREE.Vector3( 1, 0, 0 ) },
+			tank:  { color: 0x7cff7c, accent: 0x40c040, label: 'Tank',  speed: 0.3, localForward: new THREE.Vector3( 1, 0, 0 ) },
+			robot: { color: 0x7cacff, accent: 0x4080ff, label: 'Robot', speed: 0.6, localForward: new THREE.Vector3( 0, 0, 1 ) },
+		};
+
+		init();
+
+		function init() {
+			const container = document.createElement('div');
+			document.body.appendChild(container);
+
+			camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.set(0, 4, 8);
+
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x020810);
+
+			createStarfield();
+			createPlanet();
+			buildMenu();
+			preloadShipSTL();
+
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setAnimationLoop(render);
+			renderer.toneMapping = THREE.ACESFilmicToneMapping;
+			renderer.toneMappingExposure = 1.2;
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+			container.appendChild(renderer.domElement);
+
+			controls = new OrbitControls(camera, renderer.domElement);
+			controls.enableDamping = true;
+			controls.dampingFactor = 0.08;
+			controls.minDistance = 5;
+			controls.maxDistance = 20;
+			controls.target.set(0, 0, 0);
+			controls.update();
+
+			const ambientLight = new THREE.AmbientLight(0x334466, 1.5);
+			scene.add(ambientLight);
+
+			const sunLight = new THREE.DirectionalLight(0xffeedd, 2.5);
+			sunLight.position.set(10, 8, 6);
+			sunLight.castShadow = true;
+			sunLight.shadow.mapSize.set(2048, 2048);
+			sunLight.shadow.camera.near = 1;
+			sunLight.shadow.camera.far = 30;
+			sunLight.shadow.camera.left = -8;
+			sunLight.shadow.camera.right = 8;
+			sunLight.shadow.camera.top = 8;
+			sunLight.shadow.camera.bottom = -8;
+			scene.add(sunLight);
+
+			const rimLight = new THREE.DirectionalLight(0x4488ff, 0.8);
+			rimLight.position.set(-8, -2, -6);
+			scene.add(rimLight);
+
+			window.addEventListener('resize', onWindowResize);
+			window.addEventListener('keydown', onKeyDown);
+			renderer.domElement.addEventListener('pointermove', onPointerMove);
+			renderer.domElement.addEventListener('pointerdown', onPointerDown);
+			renderer.domElement.addEventListener('pointerup', onPointerUp);
+		}
+
+		function createStarfield() {
+			const starCount = 5000;
+			const positions = new Float32Array(starCount * 3);
+			const sizes = new Float32Array(starCount);
+			for (let i = 0; i < starCount; i++) {
+				const theta = Math.random() * Math.PI * 2;
+				const phi = Math.acos(2 * Math.random() - 1);
+				const r = 80 + Math.random() * 120;
+				positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+				positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+				positions[i * 3 + 2] = r * Math.cos(phi);
+				sizes[i] = 0.5 + Math.random() * 1.5;
+			}
+			const geo = new THREE.BufferGeometry();
+			geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+			geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+			const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, sizeAttenuation: true });
+			scene.add(new THREE.Points(geo, mat));
+		}
+
+		function createPlanet() {
+			const geo = new THREE.SphereGeometry(planetRadius, 128, 128);
+
+			const positions = geo.attributes.position;
+			const colors = new Float32Array(positions.count * 3);
+			for (let i = 0; i < positions.count; i++) {
+				const x = positions.getX(i);
+				const y = positions.getY(i);
+				const z = positions.getZ(i);
+				const noise = Math.sin(x * 4) * Math.cos(y * 3) * Math.sin(z * 5) * 0.5 + 0.5;
+				const noise2 = Math.sin(x * 12 + y * 8) * 0.15;
+				const val = noise + noise2;
+
+				if (val > 0.6) {
+					colors[i * 3] = 0.15 + val * 0.1;
+					colors[i * 3 + 1] = 0.35 + val * 0.15;
+					colors[i * 3 + 2] = 0.12;
+				} else if (val > 0.4) {
+					colors[i * 3] = 0.3 + val * 0.1;
+					colors[i * 3 + 1] = 0.25 + val * 0.1;
+					colors[i * 3 + 2] = 0.15;
+				} else {
+					colors[i * 3] = 0.1;
+					colors[i * 3 + 1] = 0.2 + val * 0.3;
+					colors[i * 3 + 2] = 0.35 + val * 0.2;
+				}
+			}
+			geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+			const mat = new THREE.MeshStandardMaterial({
+				vertexColors: true,
+				roughness: 0.85,
+				metalness: 0.05,
+			});
+
+			planet = new THREE.Mesh(geo, mat);
+			planet.castShadow = true;
+			planet.receiveShadow = true;
+			scene.add(planet);
+
+			const atmosGeo = new THREE.SphereGeometry(planetRadius * 1.02, 64, 64);
+			const atmosMat = new THREE.MeshBasicMaterial({
+				color: 0x4488ff,
+				transparent: true,
+				opacity: 0.08,
+				side: THREE.FrontSide,
+			});
+			scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+		}
+
+		function preloadShipSTL() {
+			const loader = new STLLoader();
+			loader.load('./model/PAT_Destroyer.stl', function (geometry) {
+				geometry.center();
+				shipGeometry = geometry;
+			});
+		}
+
+		function createUnitMesh(type) {
+			const info = unitTypes[type];
+			const group = new THREE.Group();
+			group.userData.unitType = type;
+
+			if (type === 'ship' && shipGeometry) {
+				const mat = new THREE.MeshStandardMaterial({
+					color: info.color,
+					roughness: 0.4,
+					metalness: 0.6,
+					emissive: info.accent,
+					emissiveIntensity: 0.15,
+				});
+				const mesh = new THREE.Mesh(shipGeometry.clone(), mat);
+				mesh.rotation.set(-Math.PI / 2, 0, 0);
+				mesh.scale.setScalar(UNIT_SCALE);
+				mesh.castShadow = true;
+				group.add(mesh);
+
+				const bbox = new THREE.Box3().setFromObject(group);
+				mesh.position.y = -bbox.min.y;
+			} else if (type === 'tank') {
+				const bodyMat = new THREE.MeshStandardMaterial({
+					color: info.color, roughness: 0.5, metalness: 0.5,
+					emissive: info.accent, emissiveIntensity: 0.1,
+				});
+				const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 0.3), bodyMat);
+				body.position.y = 0.075;
+				body.castShadow = true;
+				group.add(body);
+
+				const turretBase = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.1, 0.12, 0.08, 8),
+					bodyMat
+				);
+				turretBase.position.y = 0.19;
+				turretBase.castShadow = true;
+				group.add(turretBase);
+
+				const barrel = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.02, 0.02, 0.25, 6),
+					bodyMat
+				);
+				barrel.rotation.z = Math.PI / 2;
+				barrel.position.set(0.15, 0.2, 0);
+				barrel.castShadow = true;
+				group.add(barrel);
+
+				const trackMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+				for (const side of [-1, 1]) {
+					const track = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.06), trackMat);
+					track.position.set(0, 0.05, side * 0.18);
+					track.castShadow = true;
+					group.add(track);
+				}
+			} else if (type === 'robot') {
+				const mat = new THREE.MeshStandardMaterial({
+					color: info.color, roughness: 0.4, metalness: 0.6,
+					emissive: info.accent, emissiveIntensity: 0.15,
+				});
+				const torso = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.15), mat);
+				torso.position.y = 0.3;
+				torso.castShadow = true;
+				group.add(torso);
+
+				const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.12), mat);
+				head.position.y = 0.48;
+				head.castShadow = true;
+				group.add(head);
+
+				const visor = new THREE.Mesh(
+					new THREE.BoxGeometry(0.1, 0.04, 0.01),
+					new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 0.8 })
+				);
+				visor.position.set(0, 0.48, 0.065);
+				group.add(visor);
+
+				for (const side of [-1, 1]) {
+					const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.08), mat);
+					leg.position.set(side * 0.07, 0.09, 0);
+					leg.castShadow = true;
+					group.add(leg);
+
+					const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.06), mat);
+					arm.position.set(side * 0.16, 0.28, 0);
+					arm.castShadow = true;
+					group.add(arm);
+				}
+			} else if (type === 'ship' && !shipGeometry) {
+				const mat = new THREE.MeshStandardMaterial({
+					color: info.color, roughness: 0.4, metalness: 0.6,
+					emissive: info.accent, emissiveIntensity: 0.15,
+				});
+				const hull = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 6), mat);
+				hull.rotation.z = -Math.PI / 2;
+				hull.position.y = 0.15;
+				hull.castShadow = true;
+				group.add(hull);
+
+				for (const side of [-1, 1]) {
+					const wing = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.02, 0.3), mat);
+					wing.position.set(-0.05, 0.15, side * 0.15);
+					wing.castShadow = true;
+					group.add(wing);
+				}
+			}
+
+			return group;
+		}
+
+		function drawUnitIcon(type) {
+			const size = 64;
+			const canvas = document.createElement('canvas');
+			canvas.width = size;
+			canvas.height = size;
+			const ctx = canvas.getContext('2d');
+
+			ctx.fillStyle = 'rgba(0, 20, 50, 0.8)';
+			ctx.beginPath();
+			ctx.roundRect(0, 0, size, size, 6);
+			ctx.fill();
+
+			const info = unitTypes[type];
+			const hexColor = '#' + info.color.toString(16).padStart(6, '0');
+			const accentColor = '#' + info.accent.toString(16).padStart(6, '0');
+
+			ctx.strokeStyle = accentColor;
+			ctx.lineWidth = 2;
+			ctx.lineJoin = 'round';
+			ctx.lineCap = 'round';
+
+			const cx = size / 2, cy = size / 2;
+
+			if (type === 'ship') {
+				ctx.fillStyle = hexColor;
+				ctx.beginPath();
+				ctx.moveTo(cx + 18, cy);
+				ctx.lineTo(cx - 12, cy - 14);
+				ctx.lineTo(cx - 8, cy);
+				ctx.lineTo(cx - 12, cy + 14);
+				ctx.closePath();
+				ctx.fill();
+				ctx.stroke();
+
+				ctx.beginPath();
+				ctx.moveTo(cx - 10, cy - 10);
+				ctx.lineTo(cx - 18, cy - 18);
+				ctx.lineTo(cx - 14, cy - 8);
+				ctx.stroke();
+				ctx.beginPath();
+				ctx.moveTo(cx - 10, cy + 10);
+				ctx.lineTo(cx - 18, cy + 18);
+				ctx.lineTo(cx - 14, cy + 8);
+				ctx.stroke();
+			} else if (type === 'tank') {
+				ctx.fillStyle = hexColor;
+				ctx.fillRect(cx - 16, cy - 6, 32, 16);
+				ctx.strokeRect(cx - 16, cy - 6, 32, 16);
+
+				ctx.fillRect(cx - 18, cy - 10, 36, 4);
+				ctx.strokeRect(cx - 18, cy - 10, 36, 4);
+				ctx.fillRect(cx - 18, cy + 10, 36, 4);
+				ctx.strokeRect(cx - 18, cy + 10, 36, 4);
+
+				ctx.beginPath();
+				ctx.arc(cx - 4, cy + 2, 6, 0, Math.PI * 2);
+				ctx.fill();
+				ctx.stroke();
+
+				ctx.lineWidth = 3;
+				ctx.beginPath();
+				ctx.moveTo(cx, cy + 2);
+				ctx.lineTo(cx + 20, cy - 4);
+				ctx.stroke();
+			} else if (type === 'robot') {
+				ctx.fillStyle = hexColor;
+				ctx.fillRect(cx - 8, cy - 4, 16, 18);
+				ctx.strokeRect(cx - 8, cy - 4, 16, 18);
+
+				ctx.fillRect(cx - 6, cy - 12, 12, 10);
+				ctx.strokeRect(cx - 6, cy - 12, 12, 10);
+
+				ctx.fillStyle = '#ff3333';
+				ctx.fillRect(cx - 4, cy - 9, 8, 3);
+
+				ctx.fillStyle = hexColor;
+				for (const s of [-1, 1]) {
+					ctx.fillRect(cx + s * 4 - 3, cy + 14, 6, 10);
+					ctx.strokeRect(cx + s * 4 - 3, cy + 14, 6, 10);
+
+					ctx.fillRect(cx + s * 12 - 3, cy - 2, 6, 14);
+					ctx.strokeRect(cx + s * 12 - 3, cy - 2, 6, 14);
+				}
+			}
+
+			return canvas;
+		}
+
+		function buildMenu() {
+			const menu = document.getElementById('menu');
+			menu.innerHTML = '';
+
+			for (const type of Object.keys(unitTypes)) {
+				const item = document.createElement('div');
+				item.className = 'menu-item';
+				item.dataset.unit = type;
+
+				const icon = drawUnitIcon(type);
+				item.appendChild(icon);
+
+				const label = document.createElement('div');
+				label.className = 'label';
+				label.textContent = unitTypes[type].label;
+				item.appendChild(label);
+
+				item.addEventListener('click', () => {
+					document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
+
+					if (selectedUnit === type) {
+						selectedUnit = null;
+						removeGhost();
+					} else {
+						selectedUnit = type;
+						item.classList.add('selected');
+						deselectPlacedUnit();
+					}
+					updateHint();
+				});
+
+				menu.appendChild(item);
+			}
+		}
+
+		function removeGhost() {
+			if (ghostMesh) {
+				scene.remove(ghostMesh);
+				ghostMesh = null;
+			}
+		}
+
+		function updateGhost(point, normal) {
+			if (!selectedUnit) { removeGhost(); return; }
+
+			if (!ghostMesh || ghostMesh.userData.unitType !== selectedUnit) {
+				removeGhost();
+				ghostMesh = createUnitMesh(selectedUnit);
+				ghostMesh.traverse(child => {
+					if (child.isMesh) {
+						child.material = child.material.clone();
+						child.material.transparent = true;
+						child.material.opacity = 0.5;
+					}
+				});
+				scene.add(ghostMesh);
+			}
+
+			orientToSurface(ghostMesh, point, normal);
+		}
+
+		function orientToSurface(obj, point, normal, facingDir) {
+			obj.position.copy(point);
+			const up = normal.clone().normalize();
+
+			const baseQuat = new THREE.Quaternion();
+			baseQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+
+			if (facingDir) {
+				const tangent = facingDir.clone().sub(up.clone().multiplyScalar(facingDir.dot(up)));
+				if (tangent.lengthSq() > 0.0001) {
+					tangent.normalize();
+					const localFwd = unitTypes[obj.userData.unitType].localForward.clone();
+					const rotatedFwd = localFwd.applyQuaternion(baseQuat);
+					const projFwd = rotatedFwd.clone().sub(up.clone().multiplyScalar(rotatedFwd.dot(up)));
+					if (projFwd.lengthSq() > 0.0001) {
+						projFwd.normalize();
+						const angle = Math.atan2(
+							new THREE.Vector3().crossVectors(projFwd, tangent).dot(up),
+							projFwd.dot(tangent)
+						);
+						const extraRot = new THREE.Quaternion().setFromAxisAngle(up, angle);
+						obj.quaternion.copy(extraRot.multiply(baseQuat));
+						return;
+					}
+				}
+			}
+
+			obj.quaternion.copy(baseQuat);
+		}
+
+		function placeUnit(point, normal) {
+			if (!selectedUnit) return;
+			if (selectedUnit === 'ship' && !shipGeometry) return;
+
+			const unit = createUnitMesh(selectedUnit);
+			orientToSurface(unit, point, normal);
+			scene.add(unit);
+			placedUnits.push(unit);
+
+			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
+		}
+
+		function selectPlacedUnit(unit) {
+			deselectPlacedUnit();
+			activeUnit = unit;
+			selectionBox = new THREE.BoxHelper(unit, 0xffff00);
+			// selectionBox orient same as unit
+			selectionBox.rotation.copy(unit.rotation);
+			scene.add(selectionBox);
+			selectedUnit = null;
+			removeGhost();
+			document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
+			updateHint();
+		}
+
+		function deselectPlacedUnit() {
+			if (selectionBox) {
+				scene.remove(selectionBox);
+				selectionBox = null;
+			}
+			activeUnit = null;
+		}
+
+		function commandMoveTo(targetPoint) {
+			if (!activeUnit) return;
+
+			const startDir = activeUnit.position.clone().normalize();
+			const targetDir = targetPoint.clone().normalize();
+			const arcAngle = Math.acos(Math.max(-1, Math.min(1, startDir.dot(targetDir))));
+
+			activeUnit.userData.moveStartDir = startDir;
+			activeUnit.userData.moveTargetDir = targetDir;
+			activeUnit.userData.moveTarget = targetDir.clone().multiplyScalar(planetRadius);
+			activeUnit.userData.moveProgress = 0;
+			activeUnit.userData.moveArcAngle = arcAngle;
+		}
+
+		function updateMovingUnits(delta) {
+			for (const unit of placedUnits) {
+				const ud = unit.userData;
+				if (!ud.moveTarget || ud.moveProgress >= 1) continue;
+
+				const speed = unitTypes[ud.unitType].speed;
+				const arcLength = ud.moveArcAngle * planetRadius;
+				if (arcLength < 0.001) {
+					ud.moveProgress = 1;
+					ud.moveTarget = null;
+					continue;
+				}
+
+				ud.moveProgress = Math.min(1, ud.moveProgress + (speed * delta) / arcLength);
+				const t = ud.moveProgress;
+				const angle = ud.moveArcAngle;
+				const sinAngle = Math.sin(angle);
+
+				let newDir;
+				if (sinAngle < 0.001) {
+					newDir = ud.moveTargetDir.clone();
+				} else {
+					newDir = ud.moveStartDir.clone()
+						.multiplyScalar(Math.sin((1 - t) * angle) / sinAngle)
+						.add(ud.moveTargetDir.clone().multiplyScalar(Math.sin(t * angle) / sinAngle));
+				}
+				newDir.normalize();
+
+				const newPos = newDir.clone().multiplyScalar(planetRadius);
+				const facingDir = ud.moveTarget.clone().sub(newPos);
+				orientToSurface(unit, newPos, newDir, facingDir);
+
+				if (ud.moveProgress >= 1) {
+					ud.moveTarget = null;
+				}
+			}
+
+			if (selectionBox) selectionBox.update();
+		}
+
+		function updateHint() {
+			const hint = document.getElementById('placement-hint');
+			if (selectedUnit) {
+				hint.textContent = 'Click on the planet to place the unit';
+			} else if (activeUnit) {
+				const typeName = unitTypes[activeUnit.userData.unitType].label;
+				hint.textContent = typeName + ' selected \u2014 click planet to move \u2022 Esc to deselect';
+			} else {
+				hint.textContent = 'Select a unit type below to place, or click a placed unit to command it';
+			}
+			hint.style.opacity = '0.7';
+		}
+
+		function onPointerMove(event) {
+			mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+			mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+			if (wasClick) {
+				const dx = event.clientX - pointerDownPos.x;
+				const dy = event.clientY - pointerDownPos.y;
+				if (dx * dx + dy * dy > 9) wasClick = false;
+			}
+
+			if (selectedUnit) {
+				raycaster.setFromCamera(mouse, camera);
+				const intersects = raycaster.intersectObject(planet);
+				if (intersects.length > 0) {
+					const hit = intersects[0];
+					updateGhost(hit.point, hit.face.normal.clone().transformDirection(planet.matrixWorld));
+					document.body.style.cursor = 'crosshair';
+				} else {
+					removeGhost();
+					document.body.style.cursor = 'default';
+				}
+				return;
+			}
+
+			raycaster.setFromCamera(mouse, camera);
+			const unitMeshes = [];
+			for (const unit of placedUnits) {
+				unit.traverse(child => { if (child.isMesh) unitMeshes.push(child); });
+			}
+			if (raycaster.intersectObjects(unitMeshes, false).length > 0) {
+				document.body.style.cursor = 'pointer';
+			} else if (activeUnit) {
+				document.body.style.cursor = raycaster.intersectObject(planet).length > 0 ? 'crosshair' : 'default';
+			} else {
+				document.body.style.cursor = 'default';
+			}
+		}
+
+		function onPointerDown(event) {
+			if (event.button === 0) {
+				pointerDownPos.set(event.clientX, event.clientY);
+				wasClick = true;
+			}
+		}
+
+		function onPointerUp(event) {
+			if (wasClick && event.button === 0) {
+				handleClick();
+			}
+			wasClick = false;
+		}
+
+		function handleClick() {
+			raycaster.setFromCamera(mouse, camera);
+
+			if (selectedUnit) {
+				const intersects = raycaster.intersectObject(planet);
+				if (intersects.length > 0) {
+					const hit = intersects[0];
+					const worldNormal = hit.face.normal.clone().transformDirection(planet.matrixWorld);
+					placeUnit(hit.point, worldNormal);
+				}
+				return;
+			}
+
+			const unitMeshes = [];
+			for (const unit of placedUnits) {
+				unit.traverse(child => { if (child.isMesh) unitMeshes.push(child); });
+			}
+			const unitHits = raycaster.intersectObjects(unitMeshes, false);
+			if (unitHits.length > 0) {
+				let obj = unitHits[0].object;
+				while (obj.parent && !obj.userData.unitType) obj = obj.parent;
+				if (obj.userData.unitType) {
+					if (activeUnit === obj) {
+						deselectPlacedUnit();
+					} else {
+						selectPlacedUnit(obj);
+					}
+					updateHint();
+					return;
+				}
+			}
+
+			if (activeUnit) {
+				const intersects = raycaster.intersectObject(planet);
+				if (intersects.length > 0) {
+					commandMoveTo(intersects[0].point);
+					return;
+				}
+			}
+
+			deselectPlacedUnit();
+			updateHint();
+		}
+
+		function onKeyDown(event) {
+			if (event.key === 'Escape') {
+				if (activeUnit) {
+					deselectPlacedUnit();
+				} else if (selectedUnit) {
+					selectedUnit = null;
+					removeGhost();
+					document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
+				}
+				updateHint();
+			}
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		function render() {
+			const delta = clock.getDelta();
+			controls.update();
+			updateMovingUnits(delta);
+			renderer.render(scene, camera);
+		}
+	</script>
+</body>
+
+</html>
