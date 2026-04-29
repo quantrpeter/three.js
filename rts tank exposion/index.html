@@ -1010,6 +1010,98 @@
 			}
 		}
 
+		function createBigExplosion(pos) {
+			const up = pos.clone().normalize();
+
+			// White flash light
+			const flash = new THREE.PointLight(0xffffff, 20, 6);
+			flash.position.copy(pos);
+			flash.userData.age = 0;
+			flash.userData.maxAge = 0.08;
+			scene.add(flash);
+			explosions.push(flash);
+
+			// Orange sustained fire light
+			const fireLight = new THREE.PointLight(0xff5500, 12, 5);
+			fireLight.position.copy(pos);
+			fireLight.userData.age = 0;
+			fireLight.userData.maxAge = 0.9;
+			scene.add(fireLight);
+			explosions.push(fireLight);
+
+			// Fireball core (expands & fades)
+			const fbGeo = new THREE.SphereGeometry(0.18, 8, 8);
+			const fbMat = new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 1, toneMapped: false });
+			const fireball = new THREE.Mesh(fbGeo, fbMat);
+			fireball.position.copy(pos);
+			fireball.userData.age = 0;
+			fireball.userData.maxAge = 0.55;
+			fireball.userData.baseScale = 1;
+			fireball.userData.isBigExplosionBall = true;
+			scene.add(fireball);
+			explosions.push(fireball);
+
+			// Inner bright yellow core
+			const coreGeo = new THREE.SphereGeometry(0.09, 8, 8);
+			const coreMat = new THREE.MeshBasicMaterial({ color: 0xffee88, transparent: true, opacity: 1, toneMapped: false });
+			const core = new THREE.Mesh(coreGeo, coreMat);
+			core.position.copy(pos);
+			core.userData.age = 0;
+			core.userData.maxAge = 0.3;
+			core.userData.isBigExplosionBall = true;
+			scene.add(core);
+			explosions.push(core);
+
+			// Shockwave ring (flat disc expanding outward)
+			const ringGeo = new THREE.RingGeometry(0.01, 0.12, 24);
+			const ringMat = new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.9, side: THREE.DoubleSide, toneMapped: false });
+			const ring = new THREE.Mesh(ringGeo, ringMat);
+			ring.position.copy(pos);
+			// Orient ring perpendicular to surface normal
+			ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+			ring.userData.age = 0;
+			ring.userData.maxAge = 0.45;
+			ring.userData.isShockwave = true;
+			scene.add(ring);
+			explosions.push(ring);
+
+			// Smoke puffs (dark, rise along surface normal)
+			for (let i = 0; i < 6; i++) {
+				const smokeGeo = new THREE.SphereGeometry(0.07 + Math.random() * 0.07, 6, 6);
+				const smokeMat = new THREE.MeshBasicMaterial({
+					color: 0x333333, transparent: true, opacity: 0.7, toneMapped: false
+				});
+				const smoke = new THREE.Mesh(smokeGeo, smokeMat);
+				smoke.position.copy(pos);
+				const spread = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(0.15);
+				const vel = up.clone().multiplyScalar(0.4 + Math.random() * 0.5).add(spread);
+				smoke.userData.velocity = vel;
+				smoke.userData.age = Math.random() * 0.1;
+				smoke.userData.maxAge = 0.8 + Math.random() * 0.4;
+				scene.add(smoke);
+				explosions.push(smoke);
+			}
+
+			// Debris sparks
+			for (let i = 0; i < 20; i++) {
+				const sparkGeo = new THREE.SphereGeometry(0.018 + Math.random() * 0.025, 4, 4);
+				const colors = [0xffee22, 0xff8800, 0xff3300, 0xffffff];
+				const sparkMat = new THREE.MeshBasicMaterial({
+					color: colors[Math.floor(Math.random() * colors.length)],
+					transparent: true, opacity: 1, toneMapped: false
+				});
+				const spark = new THREE.Mesh(sparkGeo, sparkMat);
+				spark.position.copy(pos);
+				const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)
+					.normalize().multiplyScalar(1.2 + Math.random() * 2.0);
+				spark.userData.velocity = dir;
+				spark.userData.age = 0;
+				spark.userData.maxAge = 0.3 + Math.random() * 0.4;
+				scene.add(spark);
+				explosions.push(spark);
+			}
+		}
+
 		function updateTankFiring(delta) {
 			for (const unit of placedUnits) {
 				if (unit.userData.unitType !== 'tank') continue;
@@ -1099,6 +1191,12 @@
 
 				if (e.isPointLight) {
 					e.intensity *= 0.85;
+				} else if (e.userData.isShockwave) {
+					e.scale.setScalar(1 + t * 6);
+					e.material.opacity = (1 - t) * 0.9;
+				} else if (e.userData.isBigExplosionBall) {
+					e.scale.setScalar(1 + t * 3.5);
+					e.material.opacity = 1 - t;
 				} else if (e.isMesh) {
 					e.material.opacity = 1 - t;
 					if (e.userData.velocity) {
@@ -1172,7 +1270,7 @@
 		}
 
 		function destroyUnit(unit) {
-			createExplosion(unit.position.clone());
+			createBigExplosion(unit.position.clone());
 			if (unit.userData.healthBar) {
 				scene.remove(unit.userData.healthBar);
 			}
