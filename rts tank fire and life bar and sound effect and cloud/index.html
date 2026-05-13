@@ -144,6 +144,7 @@
 
 		let bullets = [];
 		let explosions = [];
+		let clouds = [];
 
 		const fireSound = new Audio('./sound/freesound_community-distant-tank-shots-33735.mp3');
 		const moveSound = new Audio('./sound/u_3rdmeaw7un-tank-track-ratteling-197409.mp3');
@@ -185,6 +186,7 @@
 
 			createStarfield();
 			createPlanet();
+			createClouds();
 			buildMenu();
 			preloadShipSTL();
 
@@ -252,39 +254,134 @@
 			scene.add(new THREE.Points(geo, mat));
 		}
 
-		function createPlanet() {
-			const geo = new THREE.SphereGeometry(planetRadius, 128, 128);
+		function valueNoise3D(x, y, z) {
+			const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+			const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+			const xf = x - xi, yf = y - yi, zf = z - zi;
+			const u = fade(xf), v = fade(yf), w = fade(zf);
+			const h = (a, b, c) => {
+				const s = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
+				return (s - Math.floor(s)) * 2 - 1;
+			};
+			const n000 = h(xi, yi, zi);
+			const n100 = h(xi + 1, yi, zi);
+			const n010 = h(xi, yi + 1, zi);
+			const n110 = h(xi + 1, yi + 1, zi);
+			const n001 = h(xi, yi, zi + 1);
+			const n101 = h(xi + 1, yi, zi + 1);
+			const n011 = h(xi, yi + 1, zi + 1);
+			const n111 = h(xi + 1, yi + 1, zi + 1);
+			const x00 = n000 + u * (n100 - n000);
+			const x10 = n010 + u * (n110 - n010);
+			const x01 = n001 + u * (n101 - n001);
+			const x11 = n011 + u * (n111 - n011);
+			const y0 = x00 + v * (x10 - x00);
+			const y1 = x01 + v * (x11 - x01);
+			return y0 + w * (y1 - y0);
+		}
 
+		function fbm3D(x, y, z, octaves) {
+			let total = 0, amp = 1, freq = 1, max = 0;
+			for (let i = 0; i < octaves; i++) {
+				total += amp * valueNoise3D(x * freq, y * freq, z * freq);
+				max += amp;
+				amp *= 0.5;
+				freq *= 2.0;
+			}
+			return total / max;
+		}
+
+		function terrainElevation(nx, ny, nz) {
+			const continent = fbm3D(nx * 1.3, ny * 1.3, nz * 1.3, 4);
+			const detail = fbm3D(nx * 4.5, ny * 4.5, nz * 4.5, 5) * 0.35;
+			const ridges = (1.0 - Math.abs(fbm3D(nx * 3.0, ny * 3.0, nz * 3.0, 3))) * 0.4;
+			return { continent, raw: continent + detail, ridges };
+		}
+
+		function displacementFor(elev) {
+			const MAX_LAND_HEIGHT = 0.18;
+			const OCEAN_FLOOR_DEPTH = 0.04;
+			if (elev.raw > 0) {
+				const land01 = Math.min(1, elev.raw);
+				const shaped = Math.pow(land01, 1.1);
+				const peak = elev.ridges * Math.max(0, land01 - 0.15);
+				return 0.003 + (shaped * 0.7 + peak * 0.55) * MAX_LAND_HEIGHT;
+			}
+			const depth = Math.min(1, -elev.raw);
+			return -depth * OCEAN_FLOOR_DEPTH;
+		}
+
+		function createPlanet() {
+			const MAX_LAND_HEIGHT = 0.18;
+			const OCEAN_RADIUS_OFFSET = 0.002;
+
+			const geo = new THREE.SphereGeometry(planetRadius, 192, 192);
 			const positions = geo.attributes.position;
-			const colors = new Float32Array(positions.count * 3);
-			for (let i = 0; i < positions.count; i++) {
+			const vCount = positions.count;
+			const colors = new Float32Array(vCount * 3);
+
+			for (let i = 0; i < vCount; i++) {
 				const x = positions.getX(i);
 				const y = positions.getY(i);
 				const z = positions.getZ(i);
-				const noise = Math.sin(x * 4) * Math.cos(y * 3) * Math.sin(z * 5) * 0.5 + 0.5;
-				const noise2 = Math.sin(x * 12 + y * 8) * 0.15;
-				const val = noise + noise2;
+				const len = Math.sqrt(x * x + y * y + z * z) || 1;
+				const nx = x / len, ny = y / len, nz = z / len;
 
-				if (val > 0.6) {
-					colors[i * 3] = 0.15 + val * 0.1;
-					colors[i * 3 + 1] = 0.35 + val * 0.15;
-					colors[i * 3 + 2] = 0.12;
-				} else if (val > 0.4) {
-					colors[i * 3] = 0.3 + val * 0.1;
-					colors[i * 3 + 1] = 0.25 + val * 0.1;
-					colors[i * 3 + 2] = 0.15;
+				const elev = terrainElevation(nx, ny, nz);
+				const disp = displacementFor(elev);
+				const newR = planetRadius + disp;
+				positions.setXYZ(i, nx * newR, ny * newR, nz * newR);
+
+				const tint = valueNoise3D(nx * 18, ny * 18, nz * 18) * 0.04;
+				let r, g, b;
+
+				if (elev.raw <= 0) {
+					const d = Math.min(1, -elev.raw);
+					r = 0.03 + (1 - d) * 0.05;
+					g = 0.10 + (1 - d) * 0.12;
+					b = 0.22 + (1 - d) * 0.18;
 				} else {
-					colors[i * 3] = 0.1;
-					colors[i * 3 + 1] = 0.2 + val * 0.3;
-					colors[i * 3 + 2] = 0.35 + val * 0.2;
+					const h = disp / MAX_LAND_HEIGHT;
+					if (h < 0.025) {
+						r = 0.82; g = 0.74; b = 0.52;
+					} else if (h < 0.12) {
+						const t = (h - 0.025) / 0.095;
+						r = 0.30 - t * 0.10;
+						g = 0.52 - t * 0.10;
+						b = 0.18 - t * 0.05;
+					} else if (h < 0.4) {
+						const t = (h - 0.12) / 0.28;
+						r = 0.22 + t * 0.05;
+						g = 0.40 - t * 0.10;
+						b = 0.14 + t * 0.02;
+					} else if (h < 0.7) {
+						const t = (h - 0.4) / 0.3;
+						r = 0.38 + t * 0.15;
+						g = 0.34 + t * 0.12;
+						b = 0.30 + t * 0.08;
+					} else {
+						const t = Math.min(1, (h - 0.7) / 0.3);
+						r = 0.62 + t * 0.34;
+						g = 0.65 + t * 0.32;
+						b = 0.70 + t * 0.28;
+					}
+
+					r += tint; g += tint * 0.8; b += tint * 0.6;
 				}
+
+				colors[i * 3] = Math.max(0, Math.min(1, r));
+				colors[i * 3 + 1] = Math.max(0, Math.min(1, g));
+				colors[i * 3 + 2] = Math.max(0, Math.min(1, b));
 			}
+
 			geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+			geo.computeVertexNormals();
 
 			const mat = new THREE.MeshStandardMaterial({
 				vertexColors: true,
-				roughness: 0.85,
-				metalness: 0.05,
+				roughness: 0.92,
+				metalness: 0.0,
+				flatShading: false,
 			});
 
 			planet = new THREE.Mesh(geo, mat);
@@ -292,14 +389,165 @@
 			planet.receiveShadow = true;
 			scene.add(planet);
 
-			const atmosGeo = new THREE.SphereGeometry(planetRadius * 1.2, 64, 64);
-			const atmosMat = new THREE.MeshBasicMaterial({
-				color: 0x4488ff,
+			const oceanGeo = new THREE.SphereGeometry(planetRadius + OCEAN_RADIUS_OFFSET, 128, 128);
+			const oceanMat = new THREE.MeshStandardMaterial({
+				color: 0x1242bb,
+				roughness: 0.25,
+				metalness: 0.55,
 				transparent: true,
-				opacity: 0.08,
-				side: THREE.FrontSide,
+				opacity: 0.92,
+				emissive: 0x0a1f3a,
+				emissiveIntensity: 0.15,
 			});
-			scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+			const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+			ocean.receiveShadow = true;
+			ocean.renderOrder = 1;
+			scene.add(ocean);
+
+			// const atmosGeo = new THREE.SphereGeometry(planetRadius * 1.07, 64, 64);
+			// const atmosMat = new THREE.ShaderMaterial({
+			// 	transparent: true,
+			// 	side: THREE.BackSide,
+			// 	depthWrite: false,
+			// 	blending: THREE.AdditiveBlending,
+			// 	uniforms: { glowColor: { value: new THREE.Color(0x6ab0ff) } },
+			// 	vertexShader: `
+			// 		varying vec3 vN;
+			// 		varying vec3 vV;
+			// 		void main() {
+			// 			vN = normalize(normalMatrix * normal);
+			// 			vec4 mv = modelViewMatrix * vec4(position, 1.0);
+			// 			vV = normalize(-mv.xyz);
+			// 			gl_Position = projectionMatrix * mv;
+			// 		}
+			// 	`,
+			// 	fragmentShader: `
+			// 		uniform vec3 glowColor;
+			// 		varying vec3 vN;
+			// 		varying vec3 vV;
+			// 		void main() {
+			// 			float rim = pow(1.0 - max(dot(vN, vV), 0.0), 2.5);
+			// 			gl_FragColor = vec4(glowColor * rim, rim);
+			// 		}
+			// 	`,
+			// });
+			// scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+		}
+
+		function getTerrainRadius(dir) {
+			if (!planet) return planetRadius;
+			raycaster.set(
+				dir.clone().multiplyScalar(planetRadius * 2.5),
+				dir.clone().negate()
+			);
+			const hits = raycaster.intersectObject(planet);
+			return hits.length > 0 ? hits[0].point.length() : planetRadius;
+		}
+
+		function createCloudPuffTexture(seed) {
+			const size = 256;
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = size;
+			const ctx = canvas.getContext('2d');
+
+			let s = seed * 9301 + 49297;
+			const rand = () => {
+				s = (s * 9301 + 49297) % 233280;
+				return s / 233280;
+			};
+
+			const blobCount = 9 + Math.floor(rand() * 6);
+			for (let i = 0; i < blobCount; i++) {
+				const cx = size * (0.18 + rand() * 0.64);
+				const cy = size * (0.35 + rand() * 0.3);
+				const r = size * (0.09 + rand() * 0.14);
+				const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+				g.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+				g.addColorStop(0.45, 'rgba(252, 254, 255, 0.45)');
+				g.addColorStop(1, 'rgba(240, 248, 255, 0)');
+				ctx.fillStyle = g;
+				ctx.fillRect(0, 0, size, size);
+			}
+
+			const img = ctx.getImageData(0, 0, size, size);
+			for (let i = 0; i < img.data.length; i += 4) {
+				const a = img.data[i + 3];
+				if (a > 0) {
+					const n = (rand() - 0.5) * 40;
+					img.data[i + 3] = Math.max(0, Math.min(255, a + n));
+				}
+			}
+			ctx.putImageData(img, 0, 0);
+
+			const tex = new THREE.CanvasTexture(canvas);
+			tex.colorSpace = THREE.SRGBColorSpace;
+			tex.anisotropy = 4;
+			return tex;
+		}
+
+		function createClouds() {
+			const textures = [];
+			for (let i = 0; i < 8; i++) textures.push(createCloudPuffTexture(i + 1));
+
+			const cloudCount = 55;
+			for (let i = 0; i < cloudCount; i++) {
+				const tex = textures[Math.floor(Math.random() * textures.length)];
+				const w = 0.55 + Math.random() * 1.0;
+				const h = w * (0.42 + Math.random() * 0.28);
+
+				const tint = 0.94 + Math.random() * 0.06;
+				const mat = new THREE.MeshBasicMaterial({
+					map: tex,
+					transparent: true,
+					opacity: 0.55 + Math.random() * 0.3,
+					depthWrite: false,
+					side: THREE.FrontSide,
+					toneMapped: false,
+					color: new THREE.Color(tint, tint, 1.0),
+				});
+				const cloud = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+				cloud.renderOrder = 5;
+
+				const axis = new THREE.Vector3(
+					Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+				).normalize();
+				const altitude = planetRadius + 0.28 + Math.random() * 0.22;
+
+				cloud.userData = {
+					axis: axis,
+					altitude: altitude,
+					driftAxis: new THREE.Vector3(
+						Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+					).normalize(),
+					driftSpeed: 0.008 + Math.random() * 0.018,
+					spin: Math.random() * Math.PI * 2,
+					spinSpeed: (Math.random() - 0.5) * 0.05,
+				};
+
+				positionCloud(cloud);
+				scene.add(cloud);
+				clouds.push(cloud);
+			}
+		}
+
+		function positionCloud(cloud) {
+			const ud = cloud.userData;
+			const up = ud.axis;
+			cloud.position.copy(up).multiplyScalar(ud.altitude);
+			const baseQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+			const spinQ = new THREE.Quaternion().setFromAxisAngle(up, ud.spin);
+			cloud.quaternion.multiplyQuaternions(spinQ, baseQ);
+		}
+
+		function updateClouds(delta) {
+			const driftQ = new THREE.Quaternion();
+			for (const cloud of clouds) {
+				const ud = cloud.userData;
+				driftQ.setFromAxisAngle(ud.driftAxis, ud.driftSpeed * delta);
+				ud.axis.applyQuaternion(driftQ).normalize();
+				ud.spin += ud.spinSpeed * delta;
+				positionCloud(cloud);
+			}
 		}
 
 		function preloadShipSTL() {
@@ -689,7 +937,7 @@
 
 			activeUnit.userData.moveStartDir = startDir;
 			activeUnit.userData.moveTargetDir = targetDir;
-			activeUnit.userData.moveTarget = targetDir.clone().multiplyScalar(planetRadius);
+			activeUnit.userData.moveTarget = targetDir.clone().multiplyScalar(getTerrainRadius(targetDir));
 			activeUnit.userData.moveProgress = 0;
 			activeUnit.userData.moveArcAngle = arcAngle;
 		}
@@ -722,7 +970,7 @@
 				}
 				newDir.normalize();
 
-				const newPos = newDir.clone().multiplyScalar(planetRadius);
+				const newPos = newDir.clone().multiplyScalar(getTerrainRadius(newDir));
 
 				if (wouldOverlap(newPos, unit)) {
 					ud.moveProgress = 1;
@@ -957,6 +1205,7 @@
 				age: 0,
 				target,
 				startHeight: muzzlePos.length(),
+				targetHeight: target.position.length() + 0.22,
 			};
 			bullets.push(bullet);
 
@@ -1065,7 +1314,8 @@
 				newDir.normalize();
 
 				const arcHeight = Math.sin(t * Math.PI) * 0.15;
-				const r = planetRadius + 0.22 + arcHeight;
+				const baseR = ud.startHeight + (ud.targetHeight - ud.startHeight) * t;
+				const r = baseR + arcHeight;
 				b.position.copy(newDir.clone().multiplyScalar(r));
 
 				const hitDist = 0.35;
@@ -1195,6 +1445,7 @@
 			updateTankFiring(delta);
 			updateBullets(delta);
 			updateExplosions(delta);
+			updateClouds(delta);
 			updateHealthBars();
 			renderer.render(scene, camera);
 		}
