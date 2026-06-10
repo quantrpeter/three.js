@@ -276,12 +276,21 @@
 		const TANK_FACTORY_HEALTH = 300;
 		const TANK_FACTORY_RADIUS = 0.55;
 
-		let bullets = [];
-		let explosions = [];
-		let clouds = [];
-		let smokeParticles = [];
 
-		const fireSound = new Audio('./sound/freesound_community-distant-tank-shots-33735.mp3');
+
+	const PLAYER_TEAM = 'player';
+	const AI_TEAM = 'ai';
+
+	let bullets = [];
+	let explosions = [];
+	let clouds = [];
+	let smokeParticles = [];
+
+	// Simple AI timing
+	let aiThinkTimer = 0;
+	const AI_THINK_INTERVAL = 0.6; // seconds between AI decision passes (skeleton)
+
+	const fireSound = new Audio('./sound/freesound_community-distant-tank-shots-33735.mp3');
 		const moveSound = new Audio('./sound/u_3rdmeaw7un-tank-track-ratteling-197409.mp3');
 		moveSound.loop = false;
 
@@ -334,6 +343,41 @@
 			const type = typeof unitOrType === 'string' ? unitOrType : unitOrType.userData.unitType;
 			const info = unitTypes[type];
 			return (info && info.radius) || UNIT_RADIUS;
+		}
+
+		function applyTeamTint(unit, team) {
+			// Simple visual distinction: AI units get a reddish tint on base color + emissive
+			unit.traverse((child) => {
+				if (child.isMesh && child.material) {
+					const mats = Array.isArray(child.material) ? child.material : [child.material];
+					for (const m of mats) {
+						if (!m.color) continue;
+						if (team === AI_TEAM) {
+							// Shift toward red for AI
+							if (m.color.isColor) {
+								const hsl = { h: 0, s: 0, l: 0 };
+								m.color.getHSL(hsl);
+								m.color.setHSL(0.0, Math.min(1, hsl.s * 0.7 + 0.3), Math.min(1, hsl.l * 0.9 + 0.05));
+							}
+							if (m.emissive && m.emissive.isColor) {
+								m.emissive.setHex(0x441100);
+								if (m.emissiveIntensity !== undefined) m.emissiveIntensity = 0.6;
+							}
+						} else {
+							// Reset toward neutral/player look
+							if (m.emissive && m.emissive.isColor) {
+								m.emissive.setHex(0x000000);
+								if (m.emissiveIntensity !== undefined) m.emissiveIntensity = 1.0;
+							}
+						}
+					}
+				}
+			});
+		}
+
+		function getUnitTeam(unit) {
+			if (!unit || !unit.userData) return PLAYER_TEAM;
+			return unit.userData.team || PLAYER_TEAM;
 		}
 
 		init();
@@ -452,6 +496,60 @@
 			const y0 = x00 + v * (x10 - x00);
 			const y1 = x01 + v * (x11 - x01);
 			return y0 + w * (y1 - y0);
+		}
+
+		function updateAI(){
+			aiThinkTimer += clock.getDelta()*100;
+			if (aiThinkTimer >= AI_THINK_INTERVAL) {
+				console.log('ai thinking...');
+				// build tank factory if none exists
+				const aiUnits = placedUnits.filter(u => getUnitTeam(u) === AI_TEAM);
+				const aiFactories = aiUnits.filter(u => u.userData.unitType === 'tankFactory');
+				if (aiFactories.length === 0) {
+					const factory = createUnit('tankFactory', AI_TEAM);
+					const spawnDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+					const spawnDist = planetRadius + getUnitRadius('tankFactory') + 0.5;
+					factory.position.copy(spawnDir.multiplyScalar(spawnDist));
+					factory.lookAt(0, 0, 0);
+					scene.add(factory);
+					placedUnits.push(factory);
+				} else {
+					// if factory exists, randomly build tanks
+					for (const factory of aiFactories) {
+						if (!factory.userData.buildQueue) factory.userData.buildQueue = [];
+						if (factory.userData.buildQueue.length === 0 && Math.random() < 0.5) {
+							const tankType = ['lightTank', 'tank', 'heavyTank'][Math.floor(Math.random() * 3)];
+							factory.userData.buildQueue.push(tankType);
+						}
+					}
+				}
+
+				aiThinkTimer = 0;
+			}
+		}
+
+		function createUnit(type, team = PLAYER_TEAM) {
+			const info = unitTypes[type];
+			if (!info) return null;
+
+			let mesh;
+			if (type === 'ship') {
+				mesh = shipGeometry ? shipGeometry.clone() : new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: info.color }));
+			} else if (info.isTank) {
+				mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5 * info.tankScale, 0.2 * info.tankScale, 0.4 * info.tankScale), new THREE.MeshStandardMaterial({ color: info.color }));
+			} else if (type === 'tankFactory') {
+				mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 16), new THREE.MeshStandardMaterial({ color: info.color }));
+			} else {
+				mesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: info.color }));
+			}
+
+			mesh.castShadow = true;
+			mesh.receiveShadow = true;
+			mesh.userData.unitType = type;
+			mesh.userData.team = team;
+			mesh.userData.health = info.maxHealth || UNIT_MAX_HEALTH;
+			applyTeamTint(mesh, team);
+			return mesh;
 		}
 
 		function fbm3D(x, y, z, octaves) {
@@ -1195,7 +1293,7 @@
 			return false;
 		}
 
-		function placeUnit(point, normal) {
+		function placeUnit(point, normal, team = PLAYER_TEAM) {
 			if (!selectedUnit) return;
 			if (selectedUnit === 'ship' && !shipGeometry) return;
 			if (wouldOverlap(point, null, getUnitRadius(selectedUnit))) return;
@@ -1204,6 +1302,9 @@
 			orientToSurface(unit, point, normal);
 			scene.add(unit);
 			placedUnits.push(unit);
+
+			unit.userData.team = team;
+			applyTeamTint(unit, team);
 
 			const maxHealth = unitTypes[selectedUnit].maxHealth || UNIT_MAX_HEALTH;
 			unit.userData.health = maxHealth;
@@ -1215,6 +1316,12 @@
 
 		function selectPlacedUnit(unit) {
 			deselectPlacedUnit();
+			// Prevent player from selecting/controlling AI units
+			if (getUnitTeam(unit) === AI_TEAM) {
+				activeUnit = null;
+				updateHint();
+				return;
+			}
 			activeUnit = unit;
 			selectionBox = new THREE.BoxHelper(unit, 0xffff00);
 			selectionBox.rotation.copy(unit.rotation);
@@ -1361,20 +1468,20 @@
 			menu.innerHTML = '';
 		}
 
-		function commandMoveTo(targetPoint) {
-			if (!activeUnit) return;
-			if (unitTypes[activeUnit.userData.unitType].speed === 0) return;
+		function commandMoveTo(targetPoint, unit = activeUnit) {
+			if (!unit) return;
+			if (unitTypes[unit.userData.unitType].speed === 0) return;
 			playMoveSound();
 
-			const startDir = activeUnit.position.clone().normalize();
+			const startDir = unit.position.clone().normalize();
 			const targetDir = targetPoint.clone().normalize();
 			const arcAngle = Math.acos(Math.max(-1, Math.min(1, startDir.dot(targetDir))));
 
-			activeUnit.userData.moveStartDir = startDir;
-			activeUnit.userData.moveTargetDir = targetDir;
-			activeUnit.userData.moveTarget = targetDir.clone().multiplyScalar(getTerrainRadius(targetDir));
-			activeUnit.userData.moveProgress = 0;
-			activeUnit.userData.moveArcAngle = arcAngle;
+			unit.userData.moveStartDir = startDir;
+			unit.userData.moveTargetDir = targetDir;
+			unit.userData.moveTarget = targetDir.clone().multiplyScalar(getTerrainRadius(targetDir));
+			unit.userData.moveProgress = 0;
+			unit.userData.moveArcAngle = arcAngle;
 		}
 
 		function updateMovingUnits(delta) {
@@ -1559,30 +1666,15 @@
 		function findClosestTarget(tank) {
 			const info = unitTypes[tank.userData.unitType];
 			const range = info.fireRange || TANK_FIRE_RANGE;
+			const myTeam = getUnitTeam(tank);
 			let closest = null;
 			let closestDist = Infinity;
 			for (const unit of placedUnits) {
 				if (unit === tank) continue;
 				if (unitTypes[unit.userData.unitType].speed === 0) continue;
+				if (getUnitTeam(unit) === myTeam) continue; // only attack opposite team
 				const dist = tank.position.distanceTo(unit.position);
 				if (dist < range && dist < closestDist) {
-					closest = unit;
-					closestDist = dist;
-				}
-			}
-			return closest;
-		}
-
-		function findClosestEnemyTarget(tank) {
-			const info = unitTypes[tank.userData.unitType];
-			const range = info.fireRange || TANK_FIRE_RANGE;
-			let closest = null;
-			let closestDist = Infinity;
-			for (const unit of placedUnits) {
-				if (unit === tank) continue;
-				if (unitTypes[unit.userData.unitType].speed === 0) continue;
-				const dist = tank.position.distanceTo(unit.position);
-				if (dist < range && dist < closestDist && unit.userData.team !== 'player 1') {
 					closest = unit;
 					closestDist = dist;
 				}
@@ -1728,7 +1820,7 @@
 				if (unit.userData.fireCooldown === undefined) unit.userData.fireCooldown = 0;
 				unit.userData.fireCooldown = Math.max(0, unit.userData.fireCooldown - delta);
 
-				const target = findClosestEnemyTarget(unit);
+				const target = findClosestTarget(unit);
 				if (!target) continue;
 
 				aimTurretAt(unit, target);
@@ -1922,7 +2014,6 @@
 			const maxHealth = unitTypes[tankType].maxHealth || UNIT_MAX_HEALTH;
 			tank.userData.health = maxHealth;
 			tank.userData.maxHealth = maxHealth;
-			tank.userData.team = 'player 1';
 			createHealthBar(tank);
 
 			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
@@ -2079,6 +2170,7 @@
 			updateFactories(delta);
 			updateClouds(delta);
 			updateHealthBars();
+			updateAI();
 			renderer.render(scene, camera);
 		}
 	</script>
