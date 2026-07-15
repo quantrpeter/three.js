@@ -306,7 +306,7 @@
 				localForward: new THREE.Vector3(1, 0, 0), placeable: true,
 			},
 			tank: {
-				color: 0x7cff7c, accent: 0x40c040, label: 'Tank', speed: 0.3,
+				color: 0x88e0ff, accent: 0x44a0ff, label: 'Tank', speed: 0.3,
 				localForward: new THREE.Vector3(1, 0, 0), placeable: true,
 				isTank: true, tankScale: 1.0,
 				maxHealth: 100, fireRange: 2.5, fireCooldown: 1.2, bulletDamage: 10,
@@ -320,7 +320,7 @@
 				buildTime: 3.5, buildLabel: 'Light Tank',
 			},
 			heavyTank: {
-				color: 0xff7c66, accent: 0xc04020, label: 'Heavy', speed: 0.16,
+				color: 0x88e0ff, accent: 0x44a0ff, label: 'Heavy', speed: 0.16,
 				localForward: new THREE.Vector3(1, 0, 0), placeable: false,
 				isTank: true, tankScale: 1.18,
 				maxHealth: 200, fireRange: 3.1, fireCooldown: 2.0, bulletDamage: 22,
@@ -506,13 +506,18 @@
 				const aiUnits = placedUnits.filter(u => getUnitTeam(u) === AI_TEAM);
 				const aiFactories = aiUnits.filter(u => u.userData.unitType === 'tankFactory');
 				if (aiFactories.length === 0) {
-					const factory = createUnit('tankFactory', AI_TEAM);
-					const spawnDir = new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-					const spawnDist = planetRadius + getUnitRadius('tankFactory') + 0.5;
-					factory.position.copy(spawnDir.multiplyScalar(spawnDist));
-					factory.lookAt(0, 0, 0);
+					const factory = createUnitMesh('tankFactory');
+					factory.userData.team = AI_TEAM;
+					applyTeamTint(factory, AI_TEAM);
+					const spawnDir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+					const spawnPos = spawnDir.clone().multiplyScalar(getTerrainRadius(spawnDir));
+					orientToSurface(factory, spawnPos, spawnDir.clone());
 					scene.add(factory);
 					placedUnits.push(factory);
+					const maxHealth = unitTypes.tankFactory.maxHealth || UNIT_MAX_HEALTH;
+					factory.userData.health = maxHealth;
+					factory.userData.maxHealth = maxHealth;
+					createHealthBar(factory);
 				} else {
 					// if factory exists, randomly build tanks
 					for (const factory of aiFactories) {
@@ -520,6 +525,30 @@
 						if (factory.userData.buildQueue.length === 0 && Math.random() < 0.5) {
 							const tankType = ['lightTank', 'tank', 'heavyTank'][Math.floor(Math.random() * 3)];
 							factory.userData.buildQueue.push(tankType);
+						}
+					}
+
+					// if has tank, then attack player units
+					const aiTanks = aiUnits.filter(u => unitTypes[u.userData.unitType]?.isTank);
+					const enemies = placedUnits.filter(u => getUnitTeam(u) === PLAYER_TEAM);
+					if (aiTanks.length > 0 && enemies.length > 0) {
+						for (const tank of aiTanks) {
+							let target = tank.userData.attackTarget;
+							if (!target || !placedUnits.includes(target) || getUnitTeam(target) !== PLAYER_TEAM) {
+								target = enemies[0];
+								let best = Infinity;
+								for (const e of enemies) {
+									const d = tank.position.distanceToSquared(e.position);
+									if (d < best) {
+										best = d;
+										target = e;
+									}
+								}
+								tank.userData.attackTarget = target;
+							}
+							if (!tank.userData.moveTarget) {
+								commandMoveTo(target.position, tank);
+							}
 						}
 					}
 				}
@@ -1671,7 +1700,6 @@
 			let closestDist = Infinity;
 			for (const unit of placedUnits) {
 				if (unit === tank) continue;
-				if (unitTypes[unit.userData.unitType].speed === 0) continue;
 				if (getUnitTeam(unit) === myTeam) continue; // only attack opposite team
 				const dist = tank.position.distanceTo(unit.position);
 				if (dist < range && dist < closestDist) {
@@ -2006,7 +2034,10 @@
 			const spawn = findTankSpawnPosition(factory);
 			if (!spawn) return false;
 
+			const team = getUnitTeam(factory);
 			const tank = createUnitMesh(tankType);
+			tank.userData.team = team;
+			applyTeamTint(tank, team);
 			orientToSurface(tank, spawn.position, spawn.normal, spawn.facing);
 			scene.add(tank);
 			placedUnits.push(tank);
