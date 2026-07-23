@@ -232,6 +232,9 @@
 	<div id="placement-hint">Select a unit type below to place, or click a placed unit to command it</div>
 	<div id="menu"></div>
 	<div id="unit-menu"></div>
+	<div id="game-over-screen" style="display: none; position: absolute; top: 40%; left: 40%; width: 500px; height: 300px; background: rgba(0, 0, 0, 0.5); z-index: 100; border-radius: 10px; border: 1px solid rgba(100, 180, 255, 0.35); padding: 20px; text-align: center; font-size: 80px;">
+		<div id="game-over-text">Game Over</div>
+	</div>
 
 	<script type="importmap">
 		{
@@ -276,6 +279,8 @@
 		const TANK_FACTORY_HEALTH = 300;
 		const TANK_FACTORY_RADIUS = 0.55;
 
+		let isGameOver = false;
+		let isGameStart = false;
 
 
 	const PLAYER_TEAM = 'player';
@@ -504,7 +509,7 @@
 				console.log('ai thinking...');
 				// build tank factory if none exists
 				const aiUnits = placedUnits.filter(u => getUnitTeam(u) === AI_TEAM);
-				const aiFactories = aiUnits.filter(u => u.userData.unitType === 'tankFactory');
+				const aiFactories = aiUnits.filter(u => getUnitTeam(u) === AI_TEAM && u.userData.unitType === 'tankFactory');
 				if (aiFactories.length === 0) {
 					const factory = createUnitMesh('tankFactory');
 					factory.userData.team = AI_TEAM;
@@ -523,19 +528,28 @@
 					for (const factory of aiFactories) {
 						if (!factory.userData.buildQueue) factory.userData.buildQueue = [];
 						if (factory.userData.buildQueue.length === 0 && Math.random() < 0.5) {
-							const tankType = ['lightTank', 'tank', 'heavyTank'][Math.floor(Math.random() * 3)];
-							factory.userData.buildQueue.push(tankType);
+							if (aiUnits<5){
+								factory.userData.buildQueue.push('lightTank');
+							}else{
+								const tankType = ['lightTank', 'tank', 'heavyTank'][Math.floor(Math.random() * 3)];
+								factory.userData.buildQueue.push(tankType);
+							}
 						}
 					}
 
 					// if has tank, then attack player units
 					const aiTanks = aiUnits.filter(u => unitTypes[u.userData.unitType]?.isTank);
-					const enemies = placedUnits.filter(u => getUnitTeam(u) === PLAYER_TEAM);
-					if (aiTanks.length > 0 && enemies.length > 0) {
+					const enemiesTanks = placedUnits.filter(u => getUnitTeam(u) === PLAYER_TEAM && unitTypes[u.userData.unitType]?.isTank);
+					const enemiesFactories = enemies.filter(u => getUnitTeam(u) === PLAYER_TEAM && u.userData.unitType === 'tankFactory');
+					if (aiTanks.length > 5 && enemies.length > 0) {
 						for (const tank of aiTanks) {
 							let target = tank.userData.attackTarget;
 							if (!target || !placedUnits.includes(target) || getUnitTeam(target) !== PLAYER_TEAM) {
-								target = enemies[0];
+								if (enemiesFactories.length > 0){
+									target = enemiesFactories[0];
+								}else{
+									target = enemiesTanks[0];
+								}
 								let best = Infinity;
 								for (const e of enemies) {
 									const d = tank.position.distanceToSquared(e.position);
@@ -2190,18 +2204,43 @@
 			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
 		}
 
+		function checkGameOver(){
+			if (isGameStart && placedUnits.length === 0) {
+				isGameOver = true;
+			}
+			const aiUnits = placedUnits.filter(u => getUnitTeam(u) === AI_TEAM);
+			if (isGameStart && aiUnits.length === 0) {
+				isGameOver = true;
+			}
+		}
+
+		function showGameOverScreen(){
+			// show game over screen
+			const gameOverScreen = document.getElementById('game-over-screen');
+			gameOverScreen.style.display = 'block';
+		}
+
 		function render() {
+			if (placedUnits.length>0){
+				isGameStart=true;
+			}
 			const delta = clock.getDelta();
 			controls.update();
-			updateMovingUnits(delta);
-			updateTankFiring(delta);
-			updateBullets(delta);
-			updateExplosions(delta);
-			updateSmoke(delta);
-			updateFactories(delta);
-			updateClouds(delta);
-			updateHealthBars();
-			updateAI();
+			if (isGameOver){
+				// show game over screen
+				showGameOverScreen();
+			}else{
+				updateMovingUnits(delta);
+				updateTankFiring(delta);
+				updateBullets(delta);
+				updateExplosions(delta);
+				updateSmoke(delta);
+				updateFactories(delta);
+				updateClouds(delta);
+				updateHealthBars();
+				updateAI();
+				checkGameOver();
+			}
 			renderer.render(scene, camera);
 		}
 	</script>
