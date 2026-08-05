@@ -1,0 +1,2831 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>Planetary Annihilation RTS</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
+<style>
+	#menu {
+		position: absolute;
+		bottom: 16px;
+		left: 50%;
+		transform: translateX(-50%);
+		background: linear-gradient(180deg, rgba(10, 60, 140, 0.85) 0%, rgba(5, 30, 80, 0.95) 100%);
+		padding: 8px 16px;
+		border-radius: 8px;
+		border: 1px solid rgba(100, 180, 255, 0.3);
+		display: flex;
+		gap: 12px;
+		z-index: 10;
+		user-select: none;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+	}
+
+	.menu-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		cursor: pointer;
+		padding: 8px 12px;
+		border-radius: 6px;
+		border: 2px solid transparent;
+		transition: all 0.15s ease;
+		min-width: 80px;
+	}
+
+	.menu-item:hover {
+		background: rgba(100, 180, 255, 0.15);
+		border-color: rgba(100, 180, 255, 0.3);
+	}
+
+	.menu-item.selected {
+		background: rgba(100, 180, 255, 0.25);
+		border-color: rgba(100, 200, 255, 0.7);
+		box-shadow: 0 0 12px rgba(100, 180, 255, 0.3);
+	}
+
+	.menu-item canvas {
+		border-radius: 4px;
+		margin-bottom: 4px;
+	}
+
+	.menu-item .label {
+		color: #b0d4ff;
+		font-family: 'Segoe UI', Arial, sans-serif;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+	}
+
+	.menu-item.selected .label {
+		color: #ffffff;
+	}
+
+	#unit-count {
+		position: absolute;
+		top: 12px;
+		right: 16px;
+		color: #b0d4ff;
+		font-family: 'Segoe UI', Arial, sans-serif;
+		font-size: 13px;
+		z-index: 10;
+		background: rgba(5, 30, 80, 0.8);
+		padding: 8px 14px;
+		border-radius: 6px;
+		border: 1px solid rgba(100, 180, 255, 0.2);
+	}
+
+	#placement-hint {
+		position: absolute;
+		bottom: 115px;
+		left: 50%;
+		transform: translateX(-50%);
+		color: rgba(180, 210, 255, 0.7);
+		font-family: 'Segoe UI', Arial, sans-serif;
+		font-size: 12px;
+		z-index: 10;
+		pointer-events: none;
+		transition: opacity 0.3s;
+		background: rgba(5, 30, 80, 0.6);
+		padding: 4px 12px;
+		border-radius: 4px;
+		white-space: nowrap;
+	}
+
+	#unit-menu {
+		position: absolute;
+		top: 60px;
+		right: 16px;
+		background: linear-gradient(180deg, rgba(10, 60, 140, 0.92) 0%, rgba(5, 30, 80, 0.96) 100%);
+		padding: 12px;
+		border-radius: 8px;
+		border: 1px solid rgba(100, 180, 255, 0.35);
+		z-index: 10;
+		user-select: none;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+		color: #b0d4ff;
+		font-family: 'Segoe UI', Arial, sans-serif;
+		min-width: 220px;
+		display: none;
+	}
+
+	#unit-menu.visible {
+		display: block;
+	}
+
+	#unit-menu .panel-title {
+		font-size: 14px;
+		font-weight: 700;
+		color: #ffffff;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		margin-bottom: 10px;
+		text-align: center;
+		padding-bottom: 8px;
+		border-bottom: 1px solid rgba(100, 180, 255, 0.25);
+	}
+
+	#unit-menu .build-btn {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 8px;
+		background: rgba(0, 0, 0, 0.25);
+		border: 1px solid rgba(100, 180, 255, 0.25);
+		border-radius: 6px;
+		cursor: pointer;
+		margin-bottom: 6px;
+		transition: all 0.15s ease;
+	}
+
+	#unit-menu .build-btn:hover {
+		background: rgba(100, 180, 255, 0.2);
+		border-color: rgba(100, 200, 255, 0.6);
+		transform: translateX(-2px);
+	}
+
+	#unit-menu .build-btn .info {
+		flex: 1;
+		font-size: 11px;
+	}
+
+	#unit-menu .build-btn .name {
+		color: #fff;
+		font-weight: 700;
+		font-size: 13px;
+		letter-spacing: 0.5px;
+	}
+
+	#unit-menu .build-btn .stats {
+		color: #88aacc;
+		font-size: 18px;
+		margin-top: 2px;
+	}
+
+	#unit-menu .queue {
+		margin-top: 10px;
+		padding-top: 10px;
+		border-top: 1px solid rgba(100, 180, 255, 0.25);
+	}
+
+	#unit-menu .queue-title {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 1px;
+		color: #88aacc;
+		margin-bottom: 6px;
+	}
+
+	#unit-menu .queue-empty {
+		font-size: 11px;
+		color: #5577aa;
+		font-style: italic;
+	}
+
+	#unit-menu .queue-item {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin-bottom: 5px;
+		font-size: 11px;
+	}
+
+	#unit-menu .queue-item .qname {
+		color: #fff;
+		min-width: 56px;
+	}
+
+	#unit-menu .progress-bar {
+		flex: 1;
+		height: 6px;
+		background: rgba(0, 0, 0, 0.5);
+		border-radius: 3px;
+		overflow: hidden;
+		border: 1px solid rgba(100, 180, 255, 0.15);
+	}
+
+	#unit-menu .progress-fill {
+		height: 100%;
+		background: linear-gradient(90deg, #ff8a30, #ffd070);
+		transition: width 0.1s linear;
+	}
+
+	#unit-menu .cancel {
+		color: #ff7788;
+		cursor: pointer;
+		font-size: 14px;
+		padding: 0 4px;
+		font-weight: 700;
+	}
+
+	#unit-menu .cancel:hover {
+		color: #ff99aa;
+	}
+
+	#game-over {
+		position: absolute;
+		inset: 0;
+		display: none;
+		align-items: center;
+		justify-content: center;
+		z-index: 100;
+		background: rgba(2, 8, 16, 0.72);
+		backdrop-filter: blur(4px);
+		user-select: none;
+	}
+
+	#game-over.visible {
+		display: flex;
+	}
+
+	#game-over .panel {
+		min-width: 320px;
+		max-width: 90vw;
+		text-align: center;
+		padding: 28px 36px;
+		border-radius: 12px;
+		border: 1px solid rgba(100, 180, 255, 0.35);
+		background: linear-gradient(180deg, rgba(10, 60, 140, 0.95) 0%, rgba(5, 20, 50, 0.98) 100%);
+		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+		font-family: 'Segoe UI', Arial, sans-serif;
+	}
+
+	#game-over.defeat .panel {
+		border-color: rgba(255, 90, 90, 0.45);
+		background: linear-gradient(180deg, rgba(90, 20, 30, 0.95) 0%, rgba(30, 8, 12, 0.98) 100%);
+	}
+
+	#game-over.victory .panel {
+		border-color: rgba(120, 255, 160, 0.45);
+		background: linear-gradient(180deg, rgba(20, 80, 50, 0.95) 0%, rgba(8, 30, 18, 0.98) 100%);
+	}
+
+	#game-over .title {
+		font-size: 34px;
+		font-weight: 800;
+		letter-spacing: 2px;
+		text-transform: uppercase;
+		color: #ffffff;
+		margin-bottom: 10px;
+	}
+
+	#game-over.defeat .title {
+		color: #ff8899;
+		text-shadow: 0 0 18px rgba(255, 80, 100, 0.45);
+	}
+
+	#game-over.victory .title {
+		color: #9dffb8;
+		text-shadow: 0 0 18px rgba(80, 255, 140, 0.45);
+	}
+
+	#game-over .subtitle {
+		color: #b0d4ff;
+		font-size: 14px;
+		margin-bottom: 22px;
+	}
+
+	#game-over.defeat .subtitle,
+	#game-over.victory .subtitle {
+		color: rgba(230, 240, 255, 0.85);
+	}
+
+	#game-over .actions {
+		display: flex;
+		gap: 10px;
+		justify-content: center;
+		flex-wrap: wrap;
+	}
+
+	#game-over button {
+		cursor: pointer;
+		border: 1px solid rgba(100, 180, 255, 0.45);
+		background: rgba(100, 180, 255, 0.18);
+		color: #ffffff;
+		font-family: inherit;
+		font-size: 13px;
+		font-weight: 700;
+		letter-spacing: 1px;
+		text-transform: uppercase;
+		padding: 10px 18px;
+		border-radius: 6px;
+		transition: all 0.15s ease;
+	}
+
+	#game-over button:hover {
+		background: rgba(100, 180, 255, 0.32);
+		border-color: rgba(160, 210, 255, 0.8);
+	}
+
+	#game-over.defeat button {
+		border-color: rgba(255, 140, 150, 0.45);
+		background: rgba(255, 100, 120, 0.18);
+	}
+
+	#game-over.victory button {
+		border-color: rgba(140, 255, 180, 0.45);
+		background: rgba(100, 255, 150, 0.18);
+	}
+</style>
+
+<body>
+	<div id="unit-count">Units: 0</div>
+	<div id="placement-hint">Select a unit type below to place, or click a placed unit to command it</div>
+	<div id="menu"></div>
+	<div id="unit-menu"></div>
+	<div id="game-over" aria-live="polite">
+		<div class="panel">
+			<div class="title" id="game-over-title">Game Over</div>
+			<div class="subtitle" id="game-over-subtitle"></div>
+			<div class="actions">
+				<button type="button" id="game-over-restart">Play Again</button>
+			</div>
+		</div>
+	</div>
+
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "../build/three.module.js",
+				"three/addons/": "./jsm/"
+			}
+		}
+	</script>
+	<script type="module">
+		import * as THREE from 'three';
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+		let camera, scene, renderer, controls;
+		let planet, planetRadius = 5;
+		let placedUnits = [];
+		let selectedUnit = null;
+		let shipGeometry = null;
+		let ghostMesh = null;
+		let activeUnit = null;
+		let selectionBox = null;
+		const raycaster = new THREE.Raycaster();
+		const mouse = new THREE.Vector2();
+		const clock = new THREE.Clock();
+		const pointerDownPos = new THREE.Vector2();
+		let wasClick = false;
+		let isGhostValid = true;
+
+		const UNIT_SCALE = 0.06;
+		const UNIT_RADIUS = 0.32;
+		
+		// Sea level in terrain noise space. Lower = more land, less water.
+		const SEA_LEVEL = -0.28;
+		// Positive bias expands continents before sea-level cut.
+		const LAND_BIAS = 0.22;
+
+		const TANK_FIRE_RANGE = 3.4;
+		const TANK_FIRE_COOLDOWN = 1.2;
+		const BULLET_SPEED = 5.0;
+		const BULLET_LIFETIME = 2.4;
+
+		const UNIT_MAX_HEALTH = 100;
+		const BULLET_DAMAGE = 10;
+
+		const TANK_FACTORY_PRODUCTION_TIME = 6.0;
+		const TANK_FACTORY_HEALTH = 300;
+		const TANK_FACTORY_RADIUS = 0.55;
+
+
+
+	const PLAYER_TEAM = 'player';
+	const AI_TEAM = 'ai';
+
+	let bullets = [];
+	let explosions = [];
+	let clouds = [];
+	let smokeParticles = [];
+
+	// Match / end-state tracking
+	let gameOver = false;
+	let playerHasFieldedUnits = false;
+	let aiHasFieldedUnits = false;
+
+	// RTS AI brain
+	let aiThinkTimer = 0;
+	const AI_THINK_INTERVAL = 0.7;
+	const aiState = {
+		initialized: false,
+		phase: 'bootstrap', // bootstrap | build | defend | attack
+		baseDir: null,
+		homePos: null,
+		maxFactories: 2,
+		maxArmy: 16,
+		attackGroupMin: 4,
+		defendRadius: 4.0,
+		threatRadius: 5.4,
+		rebuildCooldown: 0,
+		waveCooldown: 0,
+		waveTimer: 0,
+		unitSerial: 0,
+	};
+
+	const fireSound = new Audio('./sound/freesound_community-distant-tank-shots-33735.mp3');
+		const moveSound = new Audio('./sound/u_3rdmeaw7un-tank-track-ratteling-197409.mp3');
+		moveSound.loop = false;
+
+		const bulletGeometry = new THREE.SphereGeometry(0.025, 6, 6);
+		const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xffff44 });
+		const bulletTrailMaterial = new THREE.MeshBasicMaterial({
+			color: 0xff0000, transparent: true, opacity: 0.8,
+		});
+
+		const unitTypes = {
+			ship: {
+				color: 0xff9c7c, accent: 0xff6040, label: 'Ship', speed: 0.8,
+				localForward: new THREE.Vector3(1, 0, 0), placeable: true,
+			},
+			tank: {
+				color: 0x88e0ff, accent: 0x44a0ff, label: 'Tank', speed: 0.3,
+				localForward: new THREE.Vector3(1, 0, 0), placeable: true,
+				isTank: true, tankScale: 1.0,
+				maxHealth: 100, fireRange: 3.4, fireCooldown: 1.2, bulletDamage: 10,
+				buildTime: 6.0, buildLabel: 'Medium Tank',
+			},
+			lightTank: {
+				color: 0x88e0ff, accent: 0x44a0ff, label: 'Light', speed: 0.55,
+				localForward: new THREE.Vector3(1, 0, 0), placeable: false,
+				isTank: true, tankScale: 0.8,
+				maxHealth: 60, fireRange: 2.6, fireCooldown: 0.55, bulletDamage: 5,
+				buildTime: 3.5, buildLabel: 'Light Tank',
+			},
+			heavyTank: {
+				color: 0x88e0ff, accent: 0x44a0ff, label: 'Heavy', speed: 0.16,
+				localForward: new THREE.Vector3(1, 0, 0), placeable: false,
+				isTank: true, tankScale: 1.18,
+				maxHealth: 200, fireRange: 4.2, fireCooldown: 2.0, bulletDamage: 22,
+				buildTime: 9.0, buildLabel: 'Heavy Tank',
+			},
+			robot: {
+				color: 0x7cacff, accent: 0x4080ff, label: 'Robot', speed: 0.6,
+				localForward: new THREE.Vector3(0, 0, 1), placeable: true,
+			},
+			tankFactory: {
+				color: 0xb89060, accent: 0xff8a30, label: 'Factory', speed: 0,
+				localForward: new THREE.Vector3(1, 0, 0), placeable: true,
+				radius: TANK_FACTORY_RADIUS,
+				maxHealth: TANK_FACTORY_HEALTH,
+				factoryBuilds: ['lightTank', 'tank', 'heavyTank'],
+			},
+		};
+
+		function getUnitRadius(unitOrType) {
+			const type = typeof unitOrType === 'string' ? unitOrType : unitOrType.userData.unitType;
+			const info = unitTypes[type];
+			return (info && info.radius) || UNIT_RADIUS;
+		}
+
+		function applyTeamTint(unit, team) {
+			// Simple visual distinction: AI units get a reddish tint on base color + emissive
+			unit.traverse((child) => {
+				if (child.isMesh && child.material) {
+					const mats = Array.isArray(child.material) ? child.material : [child.material];
+					for (const m of mats) {
+						if (!m.color) continue;
+						if (team === AI_TEAM) {
+							// Shift toward red for AI
+							if (m.color.isColor) {
+								const hsl = { h: 0, s: 0, l: 0 };
+								m.color.getHSL(hsl);
+								m.color.setHSL(0.0, Math.min(1, hsl.s * 0.7 + 0.3), Math.min(1, hsl.l * 0.9 + 0.05));
+							}
+							if (m.emissive && m.emissive.isColor) {
+								m.emissive.setHex(0x441100);
+								if (m.emissiveIntensity !== undefined) m.emissiveIntensity = 0.6;
+							}
+						} else {
+							// Reset toward neutral/player look
+							if (m.emissive && m.emissive.isColor) {
+								m.emissive.setHex(0x000000);
+								if (m.emissiveIntensity !== undefined) m.emissiveIntensity = 1.0;
+							}
+						}
+					}
+				}
+			});
+		}
+
+		function getUnitTeam(unit) {
+			if (!unit || !unit.userData) return PLAYER_TEAM;
+			return unit.userData.team || PLAYER_TEAM;
+		}
+
+		init();
+
+		function playFireSound() {
+			fireSound.currentTime = 0;
+			fireSound.play();
+		}
+
+		function playMoveSound() {
+			moveSound.currentTime = 0;
+			moveSound.play();
+		}
+
+		function init() {
+			const container = document.createElement('div');
+			document.body.appendChild(container);
+
+			camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+			camera.position.set(0, 6.5, 13);
+
+			scene = new THREE.Scene();
+			scene.background = new THREE.Color(0x020810);
+
+			createStarfield();
+			createPlanet();
+			createClouds();
+			buildMenu();
+			preloadShipSTL();
+			initAIBase();
+
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			renderer.setAnimationLoop(render);
+			renderer.toneMapping = THREE.ACESFilmicToneMapping;
+			renderer.toneMappingExposure = 1.2;
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+			container.appendChild(renderer.domElement);
+
+			controls = new OrbitControls(camera, renderer.domElement);
+			controls.enableDamping = true;
+			controls.dampingFactor = 0.08;
+			controls.minDistance = 7;
+			controls.maxDistance = 32;
+			controls.target.set(0, 0, 0);
+			controls.update();
+
+			const ambientLight = new THREE.AmbientLight(0x334466, 1.5);
+			scene.add(ambientLight);
+
+			const sunLight = new THREE.DirectionalLight(0xffeedd, 2.5);
+			sunLight.position.set(16, 12, 10);
+			sunLight.castShadow = true;
+			sunLight.shadow.mapSize.set(2048, 2048);
+			sunLight.shadow.camera.near = 1;
+			sunLight.shadow.camera.far = 50;
+			sunLight.shadow.camera.left = -14;
+			sunLight.shadow.camera.right = 14;
+			sunLight.shadow.camera.top = 14;
+			sunLight.shadow.camera.bottom = -14;
+			scene.add(sunLight);
+
+			const rimLight = new THREE.DirectionalLight(0x4488ff, 0.8);
+			rimLight.position.set(-12, -3, -9);
+			scene.add(rimLight);
+
+			window.addEventListener('resize', onWindowResize);
+			window.addEventListener('keydown', onKeyDown);
+			renderer.domElement.addEventListener('pointermove', onPointerMove);
+			renderer.domElement.addEventListener('pointerdown', onPointerDown);
+			renderer.domElement.addEventListener('pointerup', onPointerUp);
+
+			const restartBtn = document.getElementById('game-over-restart');
+			if (restartBtn) restartBtn.addEventListener('click', () => window.location.reload());
+		}
+
+		function createStarfield() {
+			const starCount = 5000;
+			const positions = new Float32Array(starCount * 3);
+			const sizes = new Float32Array(starCount);
+			for (let i = 0; i < starCount; i++) {
+				const theta = Math.random() * Math.PI * 2;
+				const phi = Math.acos(2 * Math.random() - 1);
+				const r = 80 + Math.random() * 120;
+				positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+				positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+				positions[i * 3 + 2] = r * Math.cos(phi);
+				sizes[i] = 0.5 + Math.random() * 1.5;
+			}
+			const geo = new THREE.BufferGeometry();
+			geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+			geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+			const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, sizeAttenuation: true });
+			scene.add(new THREE.Points(geo, mat));
+		}
+
+		function valueNoise3D(x, y, z) {
+			const fade = t => t * t * t * (t * (t * 6 - 15) + 10);
+			const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+			const xf = x - xi, yf = y - yi, zf = z - zi;
+			const u = fade(xf), v = fade(yf), w = fade(zf);
+			const h = (a, b, c) => {
+				const s = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
+				return (s - Math.floor(s)) * 2 - 1;
+			};
+			const n000 = h(xi, yi, zi);
+			const n100 = h(xi + 1, yi, zi);
+			const n010 = h(xi, yi + 1, zi);
+			const n110 = h(xi + 1, yi + 1, zi);
+			const n001 = h(xi, yi, zi + 1);
+			const n101 = h(xi + 1, yi, zi + 1);
+			const n011 = h(xi, yi + 1, zi + 1);
+			const n111 = h(xi + 1, yi + 1, zi + 1);
+			const x00 = n000 + u * (n100 - n000);
+			const x10 = n010 + u * (n110 - n010);
+			const x01 = n001 + u * (n101 - n001);
+			const x11 = n011 + u * (n111 - n011);
+			const y0 = x00 + v * (x10 - x00);
+			const y1 = x01 + v * (x11 - x01);
+			return y0 + w * (y1 - y0);
+		}
+
+		function getTeamUnits(team) {
+			return placedUnits.filter((u) => getUnitTeam(u) === team);
+		}
+
+		function getTeamTanks(team) {
+			return getTeamUnits(team).filter((u) => unitTypes[u.userData.unitType]?.isTank);
+		}
+
+		function getTeamFactories(team) {
+			return getTeamUnits(team).filter((u) => u.userData.unitType === 'tankFactory');
+		}
+
+		function estimateArmyPower(units) {
+			let power = 0;
+			for (const u of units) {
+				const type = u.userData.unitType;
+				const hp = Math.max(0.15, (u.userData.health || 1) / (u.userData.maxHealth || 1));
+				if (type === 'lightTank') power += 1.0 * hp;
+				else if (type === 'tank') power += 1.8 * hp;
+				else if (type === 'heavyTank') power += 3.2 * hp;
+				else if (type === 'tankFactory') power += 4.0 * hp;
+				else power += 0.8 * hp;
+			}
+			return power;
+		}
+
+		function countUnitTypes(units) {
+			const counts = { lightTank: 0, tank: 0, heavyTank: 0, tankFactory: 0, other: 0 };
+			for (const u of units) {
+				const t = u.userData.unitType;
+				if (counts[t] === undefined) counts.other += 1;
+				else counts[t] += 1;
+			}
+			return counts;
+		}
+
+		function findFreeSurfacePosition(preferredDir, radius, attempts = 28) {
+			const base = preferredDir.clone().normalize();
+			for (let i = 0; i < attempts; i++) {
+				const spread = 0.08 + i * 0.07;
+				const jitter = new THREE.Vector3(
+					(Math.random() - 0.5) * spread,
+					(Math.random() - 0.5) * spread,
+					(Math.random() - 0.5) * spread
+				);
+				const dir = base.clone().add(jitter).normalize();
+				const pos = dir.clone().multiplyScalar(getTerrainRadius(dir));
+				if (!wouldOverlap(pos, null, radius)) {
+					return { position: pos, normal: dir };
+				}
+			}
+			return null;
+		}
+
+		function spawnUnitAt(type, point, normal, team, facingDir = null) {
+			if (!unitTypes[type]) return null;
+			if (wouldOverlap(point, null, getUnitRadius(type))) return null;
+
+			const unit = createUnitMesh(type);
+			unit.userData.team = team;
+			unit.userData.aiId = ++aiState.unitSerial;
+			applyTeamTint(unit, team);
+			orientToSurface(unit, point, normal, facingDir);
+			scene.add(unit);
+			placedUnits.push(unit);
+
+			const maxHealth = unitTypes[type].maxHealth || UNIT_MAX_HEALTH;
+			unit.userData.health = maxHealth;
+			unit.userData.maxHealth = maxHealth;
+			createHealthBar(unit);
+
+			if (team === PLAYER_TEAM) playerHasFieldedUnits = true;
+			if (team === AI_TEAM) aiHasFieldedUnits = true;
+
+			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
+			return unit;
+		}
+
+		function initAIBase() {
+			// Far side of the planet from the default camera view
+			aiState.baseDir = new THREE.Vector3(0.15, 0.25, -1).normalize();
+			const factorySpot = findFreeSurfacePosition(aiState.baseDir, TANK_FACTORY_RADIUS, 40);
+			if (!factorySpot) return;
+
+			const factory = spawnUnitAt('tankFactory', factorySpot.position, factorySpot.normal, AI_TEAM);
+			if (!factory) return;
+
+			aiState.homePos = factory.position.clone();
+			aiState.baseDir = factory.position.clone().normalize();
+			aiState.initialized = true;
+			aiState.phase = 'build';
+
+			// Starter scouts so the AI is not idle while the first factory builds
+			const starterOffsets = [
+				new THREE.Vector3(0.35, 0.1, 0),
+				new THREE.Vector3(-0.25, 0.15, 0.2),
+			];
+			for (const off of starterOffsets) {
+				const dir = aiState.baseDir.clone().add(off).normalize();
+				const spot = findFreeSurfacePosition(dir, UNIT_RADIUS, 20);
+				if (!spot) continue;
+				const tank = spawnUnitAt('lightTank', spot.position, spot.normal, AI_TEAM, aiState.baseDir);
+				if (tank) tank.userData.aiRole = 'defend';
+			}
+		}
+
+		function chooseAIBuildType(aiTanks, enemyUnits) {
+			const mine = countUnitTypes(aiTanks);
+			const theirs = countUnitTypes(enemyUnits);
+			const myPower = estimateArmyPower(aiTanks);
+			const enemyPower = estimateArmyPower(enemyUnits);
+
+			// Open with cheap scouts / raiders
+			if (aiTanks.length < 3) return 'lightTank';
+
+			// Counter heavy enemy pressure with heavies + mediums
+			if (theirs.heavyTank >= 2 && mine.heavyTank < theirs.heavyTank) return 'heavyTank';
+			if (enemyPower > myPower * 1.25 && mine.heavyTank < 3) return 'heavyTank';
+
+			// Keep a mobile screen of light tanks
+			if (mine.lightTank < Math.max(2, Math.floor(aiTanks.length * 0.35))) return 'lightTank';
+
+			// Prefer mediums as the backbone
+			if (mine.tank < Math.max(2, Math.floor(aiTanks.length * 0.4))) return 'tank';
+
+			// Capstone heavies once the army is established
+			if (mine.heavyTank < Math.max(1, Math.floor(aiTanks.length * 0.25))) return 'heavyTank';
+
+			// Default balanced mix
+			const roll = Math.random();
+			if (roll < 0.4) return 'lightTank';
+			if (roll < 0.75) return 'tank';
+			return 'heavyTank';
+		}
+
+		function scoreEnemyTarget(unit, enemy, focusCounts) {
+			const dist = unit.position.distanceTo(enemy.position);
+			let score = 120 - dist * 12;
+
+			const type = enemy.userData.unitType;
+			if (type === 'tankFactory') score += 90;
+			else if (type === 'heavyTank') score += 45;
+			else if (type === 'tank') score += 28;
+			else if (type === 'lightTank') score += 16;
+			else score += 8;
+
+			const hpPct = Math.max(0, (enemy.userData.health || 1) / (enemy.userData.maxHealth || 1));
+			score += (1 - hpPct) * 35;
+
+			// Mild focus-fire, but avoid overkill dogpiling one full-health unit
+			const focused = focusCounts.get(enemy) || 0;
+			score += Math.min(2, focused) * 10;
+			score -= Math.max(0, focused - 2) * 18;
+
+			// Factories under attack near home are urgent
+			if (aiState.homePos && type !== 'tankFactory') {
+				const nearHome = enemy.position.distanceTo(aiState.homePos);
+				if (nearHome < aiState.threatRadius) score += 55;
+			}
+
+			return score;
+		}
+
+		function pickEnemyTarget(unit, enemies, focusCounts) {
+			let best = null;
+			let bestScore = -Infinity;
+			for (const enemy of enemies) {
+				if (!enemy || !enemy.userData || (enemy.userData.health ?? 1) <= 0) continue;
+				const score = scoreEnemyTarget(unit, enemy, focusCounts);
+				if (score > bestScore) {
+					bestScore = score;
+					best = enemy;
+				}
+			}
+			return best;
+		}
+
+		function getUnitSideOffset(unit) {
+			const id = unit.userData.aiId || 1;
+			const slot = ((id * 17) % 9) - 4; // -4..4
+			return slot * 0.18;
+		}
+
+		function getApproachPoint(unit, target, standoff) {
+			const targetDir = target.position.clone().normalize();
+			const fromDir = unit.position.clone().normalize();
+
+			let away = fromDir.clone().sub(targetDir.clone().multiplyScalar(fromDir.dot(targetDir)));
+			if (away.lengthSq() < 1e-6) {
+				away = new THREE.Vector3(1, 0, 0).cross(targetDir);
+				if (away.lengthSq() < 1e-6) away = new THREE.Vector3(0, 0, 1).cross(targetDir);
+			}
+			away.normalize();
+
+			const side = new THREE.Vector3().crossVectors(targetDir, away).normalize();
+			const sideOffset = getUnitSideOffset(unit);
+			const arc = Math.max(0.12, standoff / planetRadius);
+
+			const approachDir = targetDir.clone()
+				.addScaledVector(away, arc)
+				.addScaledVector(side, sideOffset)
+				.normalize();
+
+			return approachDir.multiplyScalar(getTerrainRadius(approachDir));
+		}
+
+		function getDefendPoint(unit, homePos, index, total) {
+			const homeDir = homePos.clone().normalize();
+			const angle = (index / Math.max(1, total)) * Math.PI * 2 + (unit.userData.aiId || 0) * 0.15;
+			const ring = 0.55 + (index % 3) * 0.18;
+
+			let tangent = new THREE.Vector3(1, 0, 0).cross(homeDir);
+			if (tangent.lengthSq() < 1e-6) tangent = new THREE.Vector3(0, 0, 1).cross(homeDir);
+			tangent.normalize();
+			const bitangent = new THREE.Vector3().crossVectors(homeDir, tangent).normalize();
+
+			const dir = homeDir.clone()
+				.addScaledVector(tangent, Math.cos(angle) * ring)
+				.addScaledVector(bitangent, Math.sin(angle) * ring)
+				.normalize();
+
+			return dir.multiplyScalar(getTerrainRadius(dir));
+		}
+
+		function isValidTarget(target, enemies) {
+			return !!(target && placedUnits.includes(target) && enemies.includes(target));
+		}
+
+		function needsRepath(unit, desiredPoint) {
+			if (!unit.userData.moveTarget) return true;
+			if (unit.userData.moveProgress > 0 && unit.userData.moveProgress < 0.92) {
+				// Already en route; only redirect if the goal drifted a lot
+				return unit.userData.moveTarget.distanceToSquared(desiredPoint) > 0.55;
+			}
+			return unit.position.distanceToSquared(desiredPoint) > 0.12;
+		}
+
+		function issueAIMove(unit, point) {
+			if (!needsRepath(unit, point)) return;
+			commandMoveTo(point, unit, { silent: true });
+		}
+
+		function manageAIProduction(aiFactories, aiTanks, enemies) {
+			if (aiFactories.length === 0) return;
+
+			const armySize = aiTanks.length;
+			const queued = aiFactories.reduce((n, f) => n + (f.userData.buildQueue?.length || 0), 0);
+			if (armySize + queued >= aiState.maxArmy) return;
+
+			// Keep queues short so composition can adapt
+			for (const factory of aiFactories) {
+				if (!factory.userData.buildQueue) factory.userData.buildQueue = [];
+				if (factory.userData.buildQueue.length >= 2) continue;
+
+				// Always keep production rolling, faster when behind
+				const myPower = estimateArmyPower(aiTanks);
+				const enemyPower = estimateArmyPower(enemies);
+				const behind = enemyPower > myPower * 0.9;
+				const shouldQueue = factory.userData.buildQueue.length === 0 || (behind && factory.userData.buildQueue.length < 2);
+				if (!shouldQueue) continue;
+
+				const tankType = chooseAIBuildType(aiTanks, enemies);
+				factory.userData.buildQueue.push(tankType);
+			}
+		}
+
+		function maybeExpandAIBase(aiFactories, aiTanks) {
+			if (aiFactories.length >= aiState.maxFactories) return;
+			if (aiTanks.length < 7) return;
+			if (aiState.rebuildCooldown > 0) return;
+
+			const anchor = aiState.baseDir || new THREE.Vector3(0, 0.2, -1);
+			const expandDir = anchor.clone().add(new THREE.Vector3(0.45, 0.1, 0.2)).normalize();
+			const spot = findFreeSurfacePosition(expandDir, TANK_FACTORY_RADIUS, 36);
+			if (!spot) return;
+
+			const factory = spawnUnitAt('tankFactory', spot.position, spot.normal, AI_TEAM);
+			if (factory) {
+				aiState.rebuildCooldown = 8;
+				if (!aiState.homePos) {
+					aiState.homePos = factory.position.clone();
+					aiState.baseDir = factory.position.clone().normalize();
+				}
+			}
+		}
+
+		function maybeRebuildAIFactory(aiFactories) {
+			if (aiFactories.length > 0) return;
+			if (aiState.rebuildCooldown > 0) return;
+
+			const dir = aiState.baseDir || new THREE.Vector3(0.15, 0.25, -1);
+			const spot = findFreeSurfacePosition(dir, TANK_FACTORY_RADIUS, 40);
+			if (!spot) return;
+
+			const factory = spawnUnitAt('tankFactory', spot.position, spot.normal, AI_TEAM);
+			if (factory) {
+				aiState.homePos = factory.position.clone();
+				aiState.baseDir = factory.position.clone().normalize();
+				aiState.rebuildCooldown = 10;
+				aiState.phase = 'build';
+			}
+		}
+
+		function updateAIUnitOrders(aiTanks, aiFactories, enemies) {
+			if (aiTanks.length === 0) return;
+
+			const homePos = aiState.homePos || (aiFactories[0] && aiFactories[0].position) || null;
+			const threatsNearBase = homePos
+				? enemies.filter((e) => e.position.distanceTo(homePos) < aiState.threatRadius)
+				: [];
+
+			const myPower = estimateArmyPower(aiTanks);
+			const enemyPower = estimateArmyPower(enemies);
+			const canStartAttack =
+				aiTanks.length >= aiState.attackGroupMin &&
+				myPower >= Math.min(enemyPower * 0.75, enemyPower + 1.5) &&
+				aiState.waveCooldown <= 0 &&
+				enemies.length > 0;
+			const keepAttacking =
+				aiState.phase === 'attack' &&
+				aiState.waveTimer > 0 &&
+				aiTanks.length >= 2 &&
+				enemies.length > 0 &&
+				myPower > enemyPower * 0.35;
+
+			if (threatsNearBase.length > 0) {
+				aiState.phase = 'defend';
+				aiState.waveTimer = 0;
+			} else if (canStartAttack) {
+				aiState.phase = 'attack';
+				aiState.waveTimer = 14; // commit to a multi-second push
+				aiState.waveCooldown = 10; // rest before the next wave
+			} else if (keepAttacking) {
+				aiState.phase = 'attack';
+			} else {
+				aiState.phase = 'build';
+				aiState.waveTimer = 0;
+			}
+
+			// Focus-fire bookkeeping
+			const focusCounts = new Map();
+			for (const tank of aiTanks) {
+				const t = tank.userData.attackTarget;
+				if (isValidTarget(t, enemies)) {
+					focusCounts.set(t, (focusCounts.get(t) || 0) + 1);
+				}
+			}
+
+			// Keep a fraction home on defense / while massing
+			const defendCount = aiState.phase === 'attack'
+				? Math.max(1, Math.floor(aiTanks.length * 0.25))
+				: aiState.phase === 'defend'
+					? aiTanks.length
+					: Math.max(1, Math.ceil(aiTanks.length * 0.45));
+
+			// Prefer healthier / heavier units on the attack push
+			const sorted = aiTanks.slice().sort((a, b) => {
+				const pa = estimateArmyPower([a]);
+				const pb = estimateArmyPower([b]);
+				return pb - pa;
+			});
+
+			const defenders = new Set(sorted.slice(sorted.length - defendCount));
+			const attackers = sorted.filter((u) => !defenders.has(u));
+
+			// Assign defenders
+			let defendIndex = 0;
+			for (const tank of defenders) {
+				const hpPct = (tank.userData.health || 1) / (tank.userData.maxHealth || 1);
+				tank.userData.aiRole = hpPct < 0.3 ? 'retreat' : 'defend';
+
+				if (hpPct < 0.3 && homePos) {
+					issueAIMove(tank, getDefendPoint(tank, homePos, defendIndex, defenders.size));
+					tank.userData.attackTarget = pickEnemyTarget(tank, threatsNearBase.length ? threatsNearBase : enemies, focusCounts);
+					defendIndex += 1;
+					continue;
+				}
+
+				const localEnemies = threatsNearBase.length ? threatsNearBase : enemies.filter((e) => {
+					return homePos ? e.position.distanceTo(homePos) < aiState.defendRadius * 1.5 : true;
+				});
+
+				let target = tank.userData.attackTarget;
+				if (!isValidTarget(target, enemies)) {
+					target = pickEnemyTarget(tank, localEnemies.length ? localEnemies : enemies, focusCounts);
+					tank.userData.attackTarget = target;
+					if (target) focusCounts.set(target, (focusCounts.get(target) || 0) + 1);
+				}
+
+				if (target && tank.position.distanceTo(target.position) < aiState.defendRadius * 1.2) {
+					const info = unitTypes[tank.userData.unitType];
+					const standoff = (info.fireRange || TANK_FIRE_RANGE) * 0.7;
+					issueAIMove(tank, getApproachPoint(tank, target, standoff));
+				} else if (homePos) {
+					issueAIMove(tank, getDefendPoint(tank, homePos, defendIndex, defenders.size));
+				}
+				defendIndex += 1;
+			}
+
+			// Assign attackers
+			for (const tank of attackers) {
+				const hpPct = (tank.userData.health || 1) / (tank.userData.maxHealth || 1);
+				if (hpPct < 0.28 && homePos) {
+					tank.userData.aiRole = 'retreat';
+					issueAIMove(tank, getDefendPoint(tank, homePos, 0, 1));
+					continue;
+				}
+
+				tank.userData.aiRole = 'attack';
+				let target = tank.userData.attackTarget;
+				if (!isValidTarget(target, enemies) || Math.random() < 0.08) {
+					// Occasional retarget keeps pressure intelligent without thrashing every tick
+					if (isValidTarget(target, enemies)) {
+						focusCounts.set(target, Math.max(0, (focusCounts.get(target) || 1) - 1));
+					}
+					target = pickEnemyTarget(tank, enemies, focusCounts);
+					tank.userData.attackTarget = target;
+					if (target) focusCounts.set(target, (focusCounts.get(target) || 0) + 1);
+				}
+
+				if (!target) {
+					if (homePos) issueAIMove(tank, getDefendPoint(tank, homePos, 0, 1));
+					continue;
+				}
+
+				const info = unitTypes[tank.userData.unitType];
+				const range = info.fireRange || TANK_FIRE_RANGE;
+				const dist = tank.position.distanceTo(target.position);
+
+				if (dist > range * 0.85) {
+					// Close in with formation offsets
+					issueAIMove(tank, getApproachPoint(tank, target, range * 0.65));
+				} else if (dist < range * 0.35) {
+					// Kite slightly outward so units don't stack on the target
+					issueAIMove(tank, getApproachPoint(tank, target, range * 0.7));
+				} else if (!tank.userData.moveTarget) {
+					// Hold a firing position around the target
+					issueAIMove(tank, getApproachPoint(tank, target, range * 0.6));
+				}
+			}
+
+		}
+
+		function updateAI(delta) {
+			if (gameOver) return;
+			if (!aiState.initialized) initAIBase();
+
+			aiState.rebuildCooldown = Math.max(0, aiState.rebuildCooldown - delta);
+			aiState.waveCooldown = Math.max(0, aiState.waveCooldown - delta);
+			aiState.waveTimer = Math.max(0, (aiState.waveTimer || 0) - delta);
+
+			aiThinkTimer += delta;
+			if (aiThinkTimer < AI_THINK_INTERVAL) return;
+			aiThinkTimer = 0;
+
+			const aiFactories = getTeamFactories(AI_TEAM);
+			const aiTanks = getTeamTanks(AI_TEAM);
+			const enemies = getTeamUnits(PLAYER_TEAM);
+
+			maybeRebuildAIFactory(aiFactories);
+			const factoriesNow = getTeamFactories(AI_TEAM);
+			maybeExpandAIBase(factoriesNow, aiTanks);
+			manageAIProduction(getTeamFactories(AI_TEAM), aiTanks, enemies);
+
+			if (enemies.length === 0) {
+				// No contact yet: hold a perimeter around the base
+				const homePos = aiState.homePos;
+				if (homePos) {
+					aiTanks.forEach((tank, i) => {
+						tank.userData.aiRole = 'defend';
+						tank.userData.attackTarget = null;
+						issueAIMove(tank, getDefendPoint(tank, homePos, i, aiTanks.length));
+					});
+				}
+				aiState.phase = 'build';
+				return;
+			}
+
+			updateAIUnitOrders(aiTanks, getTeamFactories(AI_TEAM), enemies);
+		}
+
+		function fbm3D(x, y, z, octaves) {
+			let total = 0, amp = 1, freq = 1, max = 0;
+			for (let i = 0; i < octaves; i++) {
+				total += amp * valueNoise3D(x * freq, y * freq, z * freq);
+				max += amp;
+				amp *= 0.5;
+				freq *= 2.0;
+			}
+			return total / max;
+		}
+
+		function terrainElevation(nx, ny, nz) {
+			// Lower frequency = larger continents on the bigger planet.
+			const continent = fbm3D(nx * 0.95, ny * 0.95, nz * 0.95, 4) + LAND_BIAS;
+			const detail = fbm3D(nx * 3.2, ny * 3.2, nz * 3.2, 5) * 0.28;
+			const ridges = (1.0 - Math.abs(fbm3D(nx * 2.2, ny * 2.2, nz * 2.2, 3))) * 0.35;
+			return { continent, raw: continent + detail, ridges };
+		}
+
+		function isLandElevation(elev) {
+			return elev.raw > SEA_LEVEL;
+		}
+
+		function displacementFor(elev) {
+			const MAX_LAND_HEIGHT = 0.28;
+			const OCEAN_FLOOR_DEPTH = 0.05;
+			if (isLandElevation(elev)) {
+				const land01 = Math.min(1, Math.max(0, elev.raw - SEA_LEVEL));
+				const shaped = Math.pow(land01, 1.05);
+				const peak = elev.ridges * Math.max(0, land01 - 0.18);
+				return 0.004 + (shaped * 0.7 + peak * 0.55) * MAX_LAND_HEIGHT;
+			}
+			const depth = Math.min(1, SEA_LEVEL - elev.raw);
+			return -depth * OCEAN_FLOOR_DEPTH;
+		}
+
+		function createPlanet() {
+			const MAX_LAND_HEIGHT = 0.28;
+			const OCEAN_RADIUS_OFFSET = 0.003;
+
+			const geo = new THREE.SphereGeometry(planetRadius, 224, 224);
+			const positions = geo.attributes.position;
+			const vCount = positions.count;
+			const colors = new Float32Array(vCount * 3);
+
+			for (let i = 0; i < vCount; i++) {
+				const x = positions.getX(i);
+				const y = positions.getY(i);
+				const z = positions.getZ(i);
+				const len = Math.sqrt(x * x + y * y + z * z) || 1;
+				const nx = x / len, ny = y / len, nz = z / len;
+
+				const elev = terrainElevation(nx, ny, nz);
+				const disp = displacementFor(elev);
+				const newR = planetRadius + disp;
+				positions.setXYZ(i, nx * newR, ny * newR, nz * newR);
+
+				const tint = valueNoise3D(nx * 18, ny * 18, nz * 18) * 0.04;
+				let r, g, b;
+
+				if (!isLandElevation(elev)) {
+					const d = Math.min(1, SEA_LEVEL - elev.raw);
+					r = 0.03 + (1 - d) * 0.05;
+					g = 0.10 + (1 - d) * 0.12;
+					b = 0.22 + (1 - d) * 0.18;
+				} else {
+					const h = disp / MAX_LAND_HEIGHT;
+					if (h < 0.025) {
+						r = 0.82; g = 0.74; b = 0.52;
+					} else if (h < 0.12) {
+						const t = (h - 0.025) / 0.095;
+						r = 0.30 - t * 0.10;
+						g = 0.52 - t * 0.10;
+						b = 0.18 - t * 0.05;
+					} else if (h < 0.4) {
+						const t = (h - 0.12) / 0.28;
+						r = 0.22 + t * 0.05;
+						g = 0.40 - t * 0.10;
+						b = 0.14 + t * 0.02;
+					} else if (h < 0.7) {
+						const t = (h - 0.4) / 0.3;
+						r = 0.38 + t * 0.15;
+						g = 0.34 + t * 0.12;
+						b = 0.30 + t * 0.08;
+					} else {
+						const t = Math.min(1, (h - 0.7) / 0.3);
+						r = 0.62 + t * 0.34;
+						g = 0.65 + t * 0.32;
+						b = 0.70 + t * 0.28;
+					}
+
+					r += tint; g += tint * 0.8; b += tint * 0.6;
+				}
+
+				colors[i * 3] = Math.max(0, Math.min(1, r));
+				colors[i * 3 + 1] = Math.max(0, Math.min(1, g));
+				colors[i * 3 + 2] = Math.max(0, Math.min(1, b));
+			}
+
+			geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+			geo.computeVertexNormals();
+
+			const mat = new THREE.MeshStandardMaterial({
+				vertexColors: true,
+				roughness: 0.92,
+				metalness: 0.0,
+				flatShading: false,
+			});
+
+			planet = new THREE.Mesh(geo, mat);
+			planet.castShadow = true;
+			planet.receiveShadow = true;
+			scene.add(planet);
+
+			const oceanGeo = new THREE.SphereGeometry(planetRadius + OCEAN_RADIUS_OFFSET, 128, 128);
+			const oceanMat = new THREE.MeshStandardMaterial({
+				color: 0x1242bb,
+				roughness: 0.25,
+				metalness: 0.55,
+				transparent: true,
+				opacity: 0.92,
+				emissive: 0x0a1f3a,
+				emissiveIntensity: 0.15,
+			});
+			const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+			ocean.receiveShadow = true;
+			ocean.renderOrder = 1;
+			scene.add(ocean);
+
+			// const atmosGeo = new THREE.SphereGeometry(planetRadius * 1.07, 64, 64);
+			// const atmosMat = new THREE.ShaderMaterial({
+			// 	transparent: true,
+			// 	side: THREE.BackSide,
+			// 	depthWrite: false,
+			// 	blending: THREE.AdditiveBlending,
+			// 	uniforms: { glowColor: { value: new THREE.Color(0x6ab0ff) } },
+			// 	vertexShader: `
+			// 		varying vec3 vN;
+			// 		varying vec3 vV;
+			// 		void main() {
+			// 			vN = normalize(normalMatrix * normal);
+			// 			vec4 mv = modelViewMatrix * vec4(position, 1.0);
+			// 			vV = normalize(-mv.xyz);
+			// 			gl_Position = projectionMatrix * mv;
+			// 		}
+			// 	`,
+			// 	fragmentShader: `
+			// 		uniform vec3 glowColor;
+			// 		varying vec3 vN;
+			// 		varying vec3 vV;
+			// 		void main() {
+			// 			float rim = pow(1.0 - max(dot(vN, vV), 0.0), 2.5);
+			// 			gl_FragColor = vec4(glowColor * rim, rim);
+			// 		}
+			// 	`,
+			// });
+			// scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+		}
+
+		function getTerrainRadius(dir) {
+			if (!planet) return planetRadius;
+			raycaster.set(
+				dir.clone().multiplyScalar(planetRadius * 2.5),
+				dir.clone().negate()
+			);
+			const hits = raycaster.intersectObject(planet);
+			return hits.length > 0 ? hits[0].point.length() : planetRadius;
+		}
+
+		function createCloudPuffTexture(seed) {
+			const size = 256;
+			const canvas = document.createElement('canvas');
+			canvas.width = canvas.height = size;
+			const ctx = canvas.getContext('2d');
+
+			let s = seed * 9301 + 49297;
+			const rand = () => {
+				s = (s * 9301 + 49297) % 233280;
+				return s / 233280;
+			};
+
+			const blobCount = 9 + Math.floor(rand() * 6);
+			for (let i = 0; i < blobCount; i++) {
+				const cx = size * (0.18 + rand() * 0.64);
+				const cy = size * (0.35 + rand() * 0.3);
+				const r = size * (0.09 + rand() * 0.14);
+				const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+				g.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+				g.addColorStop(0.45, 'rgba(252, 254, 255, 0.45)');
+				g.addColorStop(1, 'rgba(240, 248, 255, 0)');
+				ctx.fillStyle = g;
+				ctx.fillRect(0, 0, size, size);
+			}
+
+			const img = ctx.getImageData(0, 0, size, size);
+			for (let i = 0; i < img.data.length; i += 4) {
+				const a = img.data[i + 3];
+				if (a > 0) {
+					const n = (rand() - 0.5) * 40;
+					img.data[i + 3] = Math.max(0, Math.min(255, a + n));
+				}
+			}
+			ctx.putImageData(img, 0, 0);
+
+			const tex = new THREE.CanvasTexture(canvas);
+			tex.colorSpace = THREE.SRGBColorSpace;
+			tex.anisotropy = 4;
+			return tex;
+		}
+
+		function createClouds() {
+			const textures = [];
+			for (let i = 0; i < 8; i++) textures.push(createCloudPuffTexture(i + 1));
+
+			const cloudCount = 70;
+			for (let i = 0; i < cloudCount; i++) {
+				const tex = textures[Math.floor(Math.random() * textures.length)];
+				const w = 0.85 + Math.random() * 1.5;
+				const h = w * (0.42 + Math.random() * 0.28);
+
+				const tint = 0.94 + Math.random() * 0.06;
+				const mat = new THREE.MeshBasicMaterial({
+					map: tex,
+					transparent: true,
+					opacity: 0.55 + Math.random() * 0.3,
+					depthWrite: false,
+					side: THREE.FrontSide,
+					toneMapped: false,
+					color: new THREE.Color(tint, tint, 1.0),
+				});
+				const cloud = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+				cloud.renderOrder = 5;
+
+				const axis = new THREE.Vector3(
+					Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+				).normalize();
+				const altitude = planetRadius + 0.42 + Math.random() * 0.35;
+
+				cloud.userData = {
+					axis: axis,
+					altitude: altitude,
+					driftAxis: new THREE.Vector3(
+						Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+					).normalize(),
+					driftSpeed: 0.008 + Math.random() * 0.018,
+					spin: Math.random() * Math.PI * 2,
+					spinSpeed: (Math.random() - 0.5) * 0.05,
+				};
+
+				positionCloud(cloud);
+				scene.add(cloud);
+				clouds.push(cloud);
+			}
+		}
+
+		function positionCloud(cloud) {
+			const ud = cloud.userData;
+			const up = ud.axis;
+			cloud.position.copy(up).multiplyScalar(ud.altitude);
+			const baseQ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), up);
+			const spinQ = new THREE.Quaternion().setFromAxisAngle(up, ud.spin);
+			cloud.quaternion.multiplyQuaternions(spinQ, baseQ);
+		}
+
+		function updateClouds(delta) {
+			const driftQ = new THREE.Quaternion();
+			for (const cloud of clouds) {
+				const ud = cloud.userData;
+				driftQ.setFromAxisAngle(ud.driftAxis, ud.driftSpeed * delta);
+				ud.axis.applyQuaternion(driftQ).normalize();
+				ud.spin += ud.spinSpeed * delta;
+				positionCloud(cloud);
+			}
+		}
+
+		function preloadShipSTL() {
+			const loader = new STLLoader();
+			loader.load('./model/PAT_Destroyer.stl', function (geometry) {
+				geometry.center();
+				shipGeometry = geometry;
+			});
+		}
+
+		function createUnitMesh(type) {
+			const info = unitTypes[type];
+			const group = new THREE.Group();
+			group.userData.unitType = type;
+
+			if (type === 'ship' && shipGeometry) {
+				const mat = new THREE.MeshStandardMaterial({
+					color: info.color,
+					roughness: 0.4,
+					metalness: 0.6,
+					emissive: info.accent,
+					emissiveIntensity: 0.15,
+				});
+				const mesh = new THREE.Mesh(shipGeometry.clone(), mat);
+				mesh.rotation.set(-Math.PI / 2, 0, 0);
+				mesh.scale.setScalar(UNIT_SCALE);
+				mesh.castShadow = true;
+				// custom attribute
+				mesh.userData.unitType = type;
+				mesh.userData.name = "Peter Ship";
+				group.add(mesh);
+
+				const bbox = new THREE.Box3().setFromObject(group);
+				mesh.position.y = -bbox.min.y;
+			} else if (info.isTank) {
+				const s = info.tankScale || 1.0;
+				const bodyMat = new THREE.MeshStandardMaterial({
+					color: info.color, roughness: 0.5, metalness: 0.5,
+					emissive: info.accent, emissiveIntensity: 0.1,
+				});
+				const body = new THREE.Mesh(new THREE.BoxGeometry(0.4 * s, 0.15 * s, 0.3 * s), bodyMat);
+				body.position.y = 0.075 * s;
+				body.castShadow = true;
+				group.add(body);
+
+				const turretBase = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.1 * s, 0.12 * s, 0.08 * s, 8),
+					bodyMat
+				);
+				turretBase.position.y = 0.19 * s;
+				turretBase.castShadow = true;
+				turretBase.userData.isTurretBase = true;
+				group.add(turretBase);
+
+				const barrel = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.02 * s, 0.02 * s, 0.25 * s, 6),
+					bodyMat
+				);
+				barrel.rotation.z = Math.PI / 2;
+				barrel.position.set(0.15 * s, 0.2 * s, 0);
+				barrel.castShadow = true;
+				barrel.userData.isBarrel = true;
+				group.add(barrel);
+
+				const trackMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+				for (const side of [-1, 1]) {
+					const track = new THREE.Mesh(new THREE.BoxGeometry(0.42 * s, 0.1 * s, 0.06 * s), trackMat);
+					track.position.set(0, 0.05 * s, side * 0.18 * s);
+					track.castShadow = true;
+					group.add(track);
+				}
+			} else if (type === 'robot') {
+				const mat = new THREE.MeshStandardMaterial({
+					color: info.color, roughness: 0.4, metalness: 0.6,
+					emissive: info.accent, emissiveIntensity: 0.15,
+				});
+				const torso = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.15), mat);
+				torso.position.y = 0.3;
+				torso.castShadow = true;
+				group.add(torso);
+
+				const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.12), mat);
+				head.position.y = 0.48;
+				head.castShadow = true;
+				group.add(head);
+
+				const visor = new THREE.Mesh(
+					new THREE.BoxGeometry(0.1, 0.04, 0.01),
+					new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 0.8 })
+				);
+				visor.position.set(0, 0.48, 0.065);
+				group.add(visor);
+
+				for (const side of [-1, 1]) {
+					const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.08), mat);
+					leg.position.set(side * 0.07, 0.09, 0);
+					leg.castShadow = true;
+					group.add(leg);
+
+					const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.2, 0.06), mat);
+					arm.position.set(side * 0.16, 0.28, 0);
+					arm.castShadow = true;
+					group.add(arm);
+				}
+			} else if (type === 'tankFactory') {
+				const wallMat = new THREE.MeshStandardMaterial({
+					color: 0x8a7050, roughness: 0.85, metalness: 0.15,
+				});
+				const trimMat = new THREE.MeshStandardMaterial({
+					color: info.accent, roughness: 0.5, metalness: 0.4,
+					emissive: info.accent, emissiveIntensity: 0.25,
+				});
+				const darkMat = new THREE.MeshStandardMaterial({
+					color: 0x222222, roughness: 0.9, metalness: 0.2,
+				});
+				const windowMat = new THREE.MeshStandardMaterial({
+					color: 0xffd070, emissive: 0xff8a30, emissiveIntensity: 1.2,
+					roughness: 0.3, metalness: 0.1,
+				});
+
+				const main = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.45, 0.7), wallMat);
+				main.position.y = 0.225;
+				main.castShadow = true;
+				main.receiveShadow = true;
+				group.add(main);
+
+				const roof = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.74), trimMat);
+				roof.position.y = 0.48;
+				roof.castShadow = true;
+				group.add(roof);
+
+				const trimBase = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.04, 0.76), trimMat);
+				trimBase.position.y = 0.02;
+				group.add(trimBase);
+
+				const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 0.42), trimMat);
+				doorFrame.position.set(0.43, 0.18, 0);
+				group.add(doorFrame);
+
+				const door = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.28, 0.36), darkMat);
+				door.position.set(0.435, 0.16, 0);
+				group.add(door);
+
+				const ramp = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, 0.36), darkMat);
+				ramp.position.set(0.52, 0.01, 0);
+				group.add(ramp);
+
+				for (const z of [-0.22, 0, 0.22]) {
+					const w = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.12, 0.1), windowMat);
+					w.position.set(-0.43, 0.28, z);
+					group.add(w);
+				}
+				for (const x of [-0.25, 0.05]) {
+					const w = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.02), windowMat);
+					w.position.set(x, 0.28, 0.36);
+					group.add(w);
+					const w2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.02), windowMat);
+					w2.position.set(x, 0.28, -0.36);
+					group.add(w2);
+				}
+
+				const chimney = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.07, 0.09, 0.45, 10),
+					wallMat
+				);
+				chimney.position.set(-0.22, 0.73, 0.18);
+				chimney.castShadow = true;
+				group.add(chimney);
+
+				const chimneyTop = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.085, 0.085, 0.05, 10),
+					trimMat
+				);
+				chimneyTop.position.set(-0.22, 0.97, 0.18);
+				group.add(chimneyTop);
+
+				const chimney2 = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.05, 0.06, 0.3, 8),
+					wallMat
+				);
+				chimney2.position.set(-0.22, 0.65, -0.18);
+				chimney2.castShadow = true;
+				group.add(chimney2);
+
+				const antenna = new THREE.Mesh(
+					new THREE.CylinderGeometry(0.008, 0.008, 0.3, 4),
+					darkMat
+				);
+				antenna.position.set(0.3, 0.66, 0.25);
+				group.add(antenna);
+
+				const antennaTip = new THREE.Mesh(
+					new THREE.SphereGeometry(0.025, 6, 6),
+					new THREE.MeshStandardMaterial({
+						color: 0xff3322, emissive: 0xff2200, emissiveIntensity: 1.5,
+					})
+				);
+				antennaTip.position.set(0.3, 0.82, 0.25);
+				group.add(antennaTip);
+
+				group.userData.chimneyOffset = new THREE.Vector3(-0.22, 1.0, 0.18);
+				group.userData.chimneyOffset2 = new THREE.Vector3(-0.22, 0.82, -0.18);
+				group.userData.spawnOffset = new THREE.Vector3(0.55, 0.0, 0.0);
+				group.userData.antennaTip = antennaTip;
+			} else if (type === 'ship' && !shipGeometry) {
+				const mat = new THREE.MeshStandardMaterial({
+					color: info.color, roughness: 0.4, metalness: 0.6,
+					emissive: info.accent, emissiveIntensity: 0.15,
+				});
+				const hull = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.5, 6), mat);
+				hull.rotation.z = -Math.PI / 2;
+				hull.position.y = 0.15;
+				hull.castShadow = true;
+				group.add(hull);
+
+				for (const side of [-1, 1]) {
+					const wing = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.02, 0.3), mat);
+					wing.position.set(-0.05, 0.15, side * 0.15);
+					wing.castShadow = true;
+					group.add(wing);
+				}
+			}
+
+			return group;
+		}
+
+		function drawUnitIcon(type) {
+			const size = 64;
+			const canvas = document.createElement('canvas');
+			canvas.width = size;
+			canvas.height = size;
+			const ctx = canvas.getContext('2d');
+
+			ctx.fillStyle = 'rgba(0, 20, 50, 0.8)';
+			ctx.beginPath();
+			ctx.roundRect(0, 0, size, size, 6);
+			ctx.fill();
+
+			const info = unitTypes[type];
+			const hexColor = '#' + info.color.toString(16).padStart(6, '0');
+			const accentColor = '#' + info.accent.toString(16).padStart(6, '0');
+
+			ctx.strokeStyle = accentColor;
+			ctx.lineWidth = 2;
+			ctx.lineJoin = 'round';
+			ctx.lineCap = 'round';
+
+			const cx = size / 2, cy = size / 2;
+
+			if (type === 'ship') {
+				ctx.fillStyle = hexColor;
+				ctx.beginPath();
+				ctx.moveTo(cx + 18, cy);
+				ctx.lineTo(cx - 12, cy - 14);
+				ctx.lineTo(cx - 8, cy);
+				ctx.lineTo(cx - 12, cy + 14);
+				ctx.closePath();
+				ctx.fill();
+				ctx.stroke();
+
+				ctx.beginPath();
+				ctx.moveTo(cx - 10, cy - 10);
+				ctx.lineTo(cx - 18, cy - 18);
+				ctx.lineTo(cx - 14, cy - 8);
+				ctx.stroke();
+				ctx.beginPath();
+				ctx.moveTo(cx - 10, cy + 10);
+				ctx.lineTo(cx - 18, cy + 18);
+				ctx.lineTo(cx - 14, cy + 8);
+				ctx.stroke();
+			} else if (info.isTank) {
+				const s = info.tankScale || 1.0;
+				const bw = Math.round(32 * s);
+				const bh = Math.round(16 * s);
+				const tw = Math.round(36 * s);
+				const tr = Math.round(6 * s);
+				const barLen = Math.round(20 * s);
+
+				ctx.fillStyle = hexColor;
+				ctx.fillRect(cx - bw / 2, cy - 6, bw, bh);
+				ctx.strokeRect(cx - bw / 2, cy - 6, bw, bh);
+
+				ctx.fillRect(cx - tw / 2, cy - 10, tw, 4);
+				ctx.strokeRect(cx - tw / 2, cy - 10, tw, 4);
+				ctx.fillRect(cx - tw / 2, cy + 10, tw, 4);
+				ctx.strokeRect(cx - tw / 2, cy + 10, tw, 4);
+
+				ctx.beginPath();
+				ctx.arc(cx - 4, cy + 2, tr, 0, Math.PI * 2);
+				ctx.fill();
+				ctx.stroke();
+
+				ctx.lineWidth = Math.max(2, Math.round(3 * s));
+				ctx.beginPath();
+				ctx.moveTo(cx, cy + 2);
+				ctx.lineTo(cx + barLen, cy - 4);
+				ctx.stroke();
+				ctx.lineWidth = 2;
+			} else if (type === 'tankFactory') {
+				ctx.fillStyle = hexColor;
+				ctx.fillRect(cx - 18, cy - 4, 32, 22);
+				ctx.strokeRect(cx - 18, cy - 4, 32, 22);
+
+				ctx.fillStyle = accentColor;
+				ctx.fillRect(cx - 20, cy - 8, 36, 5);
+				ctx.strokeRect(cx - 20, cy - 8, 36, 5);
+
+				ctx.fillStyle = hexColor;
+				ctx.fillRect(cx - 10, cy - 22, 7, 14);
+				ctx.strokeRect(cx - 10, cy - 22, 7, 14);
+				ctx.fillStyle = accentColor;
+				ctx.fillRect(cx - 11, cy - 24, 9, 3);
+
+				ctx.fillStyle = 'rgba(220, 220, 230, 0.85)';
+				ctx.beginPath();
+				ctx.arc(cx - 4, cy - 26, 3.5, 0, Math.PI * 2);
+				ctx.fill();
+				ctx.beginPath();
+				ctx.arc(cx + 1, cy - 30, 4.5, 0, Math.PI * 2);
+				ctx.fill();
+				ctx.beginPath();
+				ctx.arc(cx + 7, cy - 27, 3, 0, Math.PI * 2);
+				ctx.fill();
+
+				ctx.fillStyle = '#ffd070';
+				for (let i = 0; i < 3; i++) {
+					ctx.fillRect(cx - 14 + i * 9, cy + 3, 4, 5);
+				}
+
+				ctx.fillStyle = '#222';
+				ctx.fillRect(cx + 14, cy + 4, 4, 14);
+				ctx.strokeRect(cx + 14, cy + 4, 4, 14);
+			} else if (type === 'robot') {
+				ctx.fillStyle = hexColor;
+				ctx.fillRect(cx - 8, cy - 4, 16, 18);
+				ctx.strokeRect(cx - 8, cy - 4, 16, 18);
+
+				ctx.fillRect(cx - 6, cy - 12, 12, 10);
+				ctx.strokeRect(cx - 6, cy - 12, 12, 10);
+
+				ctx.fillStyle = '#ff3333';
+				ctx.fillRect(cx - 4, cy - 9, 8, 3);
+
+				ctx.fillStyle = hexColor;
+				for (const s of [-1, 1]) {
+					ctx.fillRect(cx + s * 4 - 3, cy + 14, 6, 10);
+					ctx.strokeRect(cx + s * 4 - 3, cy + 14, 6, 10);
+
+					ctx.fillRect(cx + s * 12 - 3, cy - 2, 6, 14);
+					ctx.strokeRect(cx + s * 12 - 3, cy - 2, 6, 14);
+				}
+			}
+
+			return canvas;
+		}
+
+		function buildMenu() {
+			const menu = document.getElementById('menu');
+			menu.innerHTML = '';
+
+			for (const type of Object.keys(unitTypes)) {
+				if (unitTypes[type].placeable === false) continue;
+				const item = document.createElement('div');
+				item.className = 'menu-item';
+				item.dataset.unit = type;
+
+				const icon = drawUnitIcon(type);
+				item.appendChild(icon);
+
+				const label = document.createElement('div');
+				label.className = 'label';
+				label.textContent = unitTypes[type].label;
+				item.appendChild(label);
+
+				item.addEventListener('click', () => {
+					if (gameOver) return;
+					document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
+
+					if (selectedUnit === type) {
+						selectedUnit = null;
+						removeGhost();
+					} else {
+						selectedUnit = type;
+						item.classList.add('selected');
+						deselectPlacedUnit();
+					}
+					updateHint();
+				});
+
+				menu.appendChild(item);
+			}
+		}
+
+		function removeGhost() {
+			if (ghostMesh) {
+				scene.remove(ghostMesh);
+				ghostMesh = null;
+			}
+		}
+
+		function updateGhost(point, normal) {
+			if (!selectedUnit) { removeGhost(); return; }
+
+			if (!ghostMesh || ghostMesh.userData.unitType !== selectedUnit) {
+				removeGhost();
+				ghostMesh = createUnitMesh(selectedUnit);
+				ghostMesh.traverse(child => {
+					if (child.isMesh) {
+						child.material = child.material.clone();
+						child.material.transparent = true;
+						child.material.opacity = 0.5;
+						child.material.userData.origColor = child.material.color.getHex();
+						child.material.userData.origEmissive = child.material.emissive.getHex();
+					}
+				});
+				scene.add(ghostMesh);
+			}
+
+			orientToSurface(ghostMesh, point, normal);
+
+			isGhostValid = !wouldOverlap(point, null, getUnitRadius(selectedUnit));
+			ghostMesh.traverse(child => {
+				if (child.isMesh) {
+					if (isGhostValid) {
+						child.material.color.setHex(child.material.userData.origColor);
+						child.material.emissive.setHex(child.material.userData.origEmissive);
+					} else {
+						child.material.color.set(0xff2222);
+						child.material.emissive.set(0x440000);
+					}
+				}
+			});
+		}
+
+		function orientToSurface(obj, point, normal, facingDir) {
+			obj.position.copy(point);
+			const up = normal.clone().normalize();
+
+			const baseQuat = new THREE.Quaternion();
+			baseQuat.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+
+			if (facingDir) {
+				const tangent = facingDir.clone().sub(up.clone().multiplyScalar(facingDir.dot(up)));
+				if (tangent.lengthSq() > 0.0001) {
+					tangent.normalize();
+					const localFwd = unitTypes[obj.userData.unitType].localForward.clone();
+					const rotatedFwd = localFwd.applyQuaternion(baseQuat);
+					const projFwd = rotatedFwd.clone().sub(up.clone().multiplyScalar(rotatedFwd.dot(up)));
+					if (projFwd.lengthSq() > 0.0001) {
+						projFwd.normalize();
+						const angle = Math.atan2(
+							new THREE.Vector3().crossVectors(projFwd, tangent).dot(up),
+							projFwd.dot(tangent)
+						);
+						const extraRot = new THREE.Quaternion().setFromAxisAngle(up, angle);
+						obj.quaternion.copy(extraRot.multiply(baseQuat));
+						return;
+					}
+				}
+			}
+
+			obj.quaternion.copy(baseQuat);
+		}
+
+		function wouldOverlap(position, excludeUnit, ownRadius) {
+			const r1 = ownRadius || UNIT_RADIUS;
+			for (const unit of placedUnits) {
+				if (unit === excludeUnit) continue;
+				const r2 = getUnitRadius(unit);
+				if (unit.position.distanceTo(position) < r1 + r2) return true;
+			}
+			return false;
+		}
+
+		function placeUnit(point, normal, team = PLAYER_TEAM) {
+			if (gameOver) return;
+			if (!selectedUnit) return;
+			if (selectedUnit === 'ship' && !shipGeometry) return;
+			if (wouldOverlap(point, null, getUnitRadius(selectedUnit))) return;
+
+			const unit = createUnitMesh(selectedUnit);
+			orientToSurface(unit, point, normal);
+			scene.add(unit);
+			placedUnits.push(unit);
+
+			unit.userData.team = team;
+			applyTeamTint(unit, team);
+
+			const maxHealth = unitTypes[selectedUnit].maxHealth || UNIT_MAX_HEALTH;
+			unit.userData.health = maxHealth;
+			unit.userData.maxHealth = maxHealth;
+			createHealthBar(unit);
+
+			if (team === PLAYER_TEAM) playerHasFieldedUnits = true;
+			if (team === AI_TEAM) aiHasFieldedUnits = true;
+
+			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
+			checkGameOver();
+		}
+
+		function selectPlacedUnit(unit) {
+			deselectPlacedUnit();
+			// Prevent player from selecting/controlling AI units
+			if (getUnitTeam(unit) === AI_TEAM) {
+				activeUnit = null;
+				updateHint();
+				return;
+			}
+			activeUnit = unit;
+			selectionBox = new THREE.BoxHelper(unit, 0xffff00);
+			selectionBox.rotation.copy(unit.rotation);
+			scene.add(selectionBox);
+			selectedUnit = null;
+			removeGhost();
+			document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
+
+			if (unit.userData.unitType === 'tankFactory') {
+				showFactoryMenu(unit);
+			}
+
+			updateHint();
+		}
+
+		function deselectPlacedUnit() {
+			if (selectionBox) {
+				scene.remove(selectionBox);
+				selectionBox = null;
+			}
+			activeUnit = null;
+			hideFactoryMenu();
+		}
+
+		function showFactoryMenu(factory) {
+			const menu = document.getElementById('unit-menu');
+			menu.innerHTML = '';
+			menu.classList.add('visible');
+
+			const title = document.createElement('div');
+			title.className = 'panel-title';
+			title.textContent = 'Tank Factory';
+			menu.appendChild(title);
+
+			const builds = unitTypes.tankFactory.factoryBuilds || [];
+			for (const t of builds) {
+				const info = unitTypes[t];
+				const btn = document.createElement('div');
+				btn.className = 'build-btn';
+
+				const icon = drawUnitIcon(t);
+				icon.style.width = '40px';
+				icon.style.height = '40px';
+				btn.appendChild(icon);
+
+				const infoDiv = document.createElement('div');
+				infoDiv.className = 'info';
+				const name = document.createElement('div');
+				name.className = 'name';
+				name.textContent = info.buildLabel || info.label;
+				infoDiv.appendChild(name);
+				const stats = document.createElement('div');
+				stats.className = 'stats';
+				stats.textContent = `HP ${info.maxHealth}  \u2022  DMG ${info.bulletDamage}  \u2022  ${info.buildTime.toFixed(1)}s`;
+				infoDiv.appendChild(stats);
+				btn.appendChild(infoDiv);
+
+				btn.addEventListener('click', () => enqueueFactoryBuild(factory, t));
+				menu.appendChild(btn);
+			}
+
+			const queueWrap = document.createElement('div');
+			queueWrap.className = 'queue';
+			queueWrap.id = 'factory-queue';
+			menu.appendChild(queueWrap);
+
+			rebuildFactoryQueueUI();
+		}
+
+		function rebuildFactoryQueueUI() {
+			const factory = activeUnit;
+			if (!factory || factory.userData.unitType !== 'tankFactory') return;
+			const queueEl = document.getElementById('factory-queue');
+			if (!queueEl) return;
+
+			queueEl.innerHTML = '';
+			const title = document.createElement('div');
+			title.className = 'queue-title';
+			title.textContent = 'Build Queue';
+			queueEl.appendChild(title);
+
+			const queue = factory.userData.buildQueue || [];
+			if (queue.length === 0) {
+				const empty = document.createElement('div');
+				empty.className = 'queue-empty';
+				empty.textContent = 'Idle';
+				queueEl.appendChild(empty);
+				return;
+			}
+
+			queue.forEach((t, idx) => {
+				const info = unitTypes[t];
+				const row = document.createElement('div');
+				row.className = 'queue-item';
+				row.dataset.queueIdx = String(idx);
+
+				const name = document.createElement('div');
+				name.className = 'qname';
+				name.textContent = info.label;
+				row.appendChild(name);
+
+				const bar = document.createElement('div');
+				bar.className = 'progress-bar';
+				const fill = document.createElement('div');
+				fill.className = 'progress-fill';
+				const pct = idx === 0
+					? Math.min(1, (factory.userData.buildProgress || 0) / info.buildTime)
+					: 0;
+				fill.style.width = (pct * 100).toFixed(1) + '%';
+				bar.appendChild(fill);
+				row.appendChild(bar);
+
+				const cancel = document.createElement('div');
+				cancel.className = 'cancel';
+				cancel.textContent = '\u2716';
+				cancel.title = 'Cancel';
+				cancel.addEventListener('click', (e) => {
+					e.stopPropagation();
+					cancelFactoryBuild(factory, idx);
+				});
+				row.appendChild(cancel);
+
+				queueEl.appendChild(row);
+			});
+		}
+
+		function updateFactoryProgressUI(factory) {
+			const queueEl = document.getElementById('factory-queue');
+			if (!queueEl) return;
+			const firstRow = queueEl.querySelector('.queue-item[data-queue-idx="0"]');
+			if (!firstRow) return;
+			const fill = firstRow.querySelector('.progress-fill');
+			if (!fill) return;
+			const type = factory.userData.buildQueue[0];
+			if (!type) return;
+			const buildTime = unitTypes[type].buildTime || 5.0;
+			const pct = Math.min(1, (factory.userData.buildProgress || 0) / buildTime);
+			fill.style.width = (pct * 100).toFixed(1) + '%';
+		}
+
+		function hideFactoryMenu() {
+			const menu = document.getElementById('unit-menu');
+			menu.classList.remove('visible');
+			menu.innerHTML = '';
+		}
+
+		function commandMoveTo(targetPoint, unit = activeUnit, options = {}) {
+			if (gameOver && !options.silent) return;
+			if (!unit) return;
+			if (unitTypes[unit.userData.unitType].speed === 0) return;
+			if (!options.silent) playMoveSound();
+
+			const startDir = unit.position.clone().normalize();
+			const targetDir = targetPoint.clone().normalize();
+			const arcAngle = Math.acos(Math.max(-1, Math.min(1, startDir.dot(targetDir))));
+
+			unit.userData.moveStartDir = startDir;
+			unit.userData.moveTargetDir = targetDir;
+			unit.userData.moveTarget = targetDir.clone().multiplyScalar(getTerrainRadius(targetDir));
+			unit.userData.moveProgress = 0;
+			unit.userData.moveArcAngle = arcAngle;
+		}
+
+		function updateMovingUnits(delta) {
+			for (const unit of placedUnits) {
+				const ud = unit.userData;
+				if (!ud.moveTarget || ud.moveProgress >= 1) continue;
+
+				const speed = unitTypes[ud.unitType].speed;
+				if (speed <= 0) {
+					ud.moveTarget = null;
+					continue;
+				}
+				const arcLength = ud.moveArcAngle * planetRadius;
+				if (arcLength < 0.001) {
+					ud.moveProgress = 1;
+					ud.moveTarget = null;
+					continue;
+				}
+
+				ud.moveProgress = Math.min(1, ud.moveProgress + (speed * delta) / arcLength);
+				const t = ud.moveProgress;
+				const angle = ud.moveArcAngle;
+				const sinAngle = Math.sin(angle);
+
+				let newDir;
+				if (sinAngle < 0.001) {
+					newDir = ud.moveTargetDir.clone();
+				} else {
+					newDir = ud.moveStartDir.clone()
+						.multiplyScalar(Math.sin((1 - t) * angle) / sinAngle)
+						.add(ud.moveTargetDir.clone().multiplyScalar(Math.sin(t * angle) / sinAngle));
+				}
+				newDir.normalize();
+
+				const newPos = newDir.clone().multiplyScalar(getTerrainRadius(newDir));
+
+				if (wouldOverlap(newPos, unit, getUnitRadius(unit))) {
+					ud.moveProgress = 1;
+					ud.moveTarget = null;
+					continue;
+				}
+
+				const facingDir = ud.moveTarget.clone().sub(newPos);
+				orientToSurface(unit, newPos, newDir, facingDir);
+
+				if (ud.moveProgress >= 1) {
+					ud.moveTarget = null;
+				}
+			}
+
+			if (selectionBox) selectionBox.update();
+		}
+
+		function updateHint() {
+			const hint = document.getElementById('placement-hint');
+			if (selectedUnit) {
+				hint.textContent = 'Click on the planet to place the unit';
+			} else if (activeUnit) {
+				const typeName = unitTypes[activeUnit.userData.unitType].label;
+				hint.textContent = typeName + ' selected \u2014 click planet to move \u2022 Esc to deselect';
+			} else {
+				hint.textContent = 'Select a unit type below to place, or click a placed unit to command it';
+			}
+			hint.style.opacity = '0.7';
+		}
+
+		function onPointerMove(event) {
+			mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+			mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+			if (wasClick) {
+				const dx = event.clientX - pointerDownPos.x;
+				const dy = event.clientY - pointerDownPos.y;
+				if (dx * dx + dy * dy > 9) wasClick = false;
+			}
+
+			if (selectedUnit) {
+				raycaster.setFromCamera(mouse, camera);
+				const intersects = raycaster.intersectObject(planet);
+				if (intersects.length > 0) {
+					const hit = intersects[0];
+					updateGhost(hit.point, hit.face.normal.clone().transformDirection(planet.matrixWorld));
+					document.body.style.cursor = 'crosshair';
+				} else {
+					removeGhost();
+					document.body.style.cursor = 'default';
+				}
+				return;
+			}
+
+			raycaster.setFromCamera(mouse, camera);
+			const unitMeshes = [];
+			for (const unit of placedUnits) {
+				unit.traverse(child => { if (child.isMesh) unitMeshes.push(child); });
+			}
+			if (raycaster.intersectObjects(unitMeshes, false).length > 0) {
+				document.body.style.cursor = 'pointer';
+			} else if (activeUnit) {
+				document.body.style.cursor = raycaster.intersectObject(planet).length > 0 ? 'crosshair' : 'default';
+			} else {
+				document.body.style.cursor = 'default';
+			}
+		}
+
+		function onPointerDown(event) {
+			if (event.button === 0) {
+				pointerDownPos.set(event.clientX, event.clientY);
+				wasClick = true;
+			}
+		}
+
+		function onPointerUp(event) {
+			if (wasClick && event.button === 0) {
+				handleClick();
+			}
+			wasClick = false;
+		}
+
+		function handleClick() {
+			if (gameOver) return;
+			raycaster.setFromCamera(mouse, camera);
+
+			if (selectedUnit) {
+				const intersects = raycaster.intersectObject(planet);
+				if (intersects.length > 0) {
+					const hit = intersects[0];
+					const worldNormal = hit.face.normal.clone().transformDirection(planet.matrixWorld);
+					placeUnit(hit.point, worldNormal);
+				}
+				return;
+			}
+
+			const unitMeshes = [];
+			for (const unit of placedUnits) {
+				unit.traverse(child => { if (child.isMesh) unitMeshes.push(child); });
+			}
+			const unitHits = raycaster.intersectObjects(unitMeshes, false);
+			if (unitHits.length > 0) {
+				let obj = unitHits[0].object;
+				while (obj.parent && !obj.userData.unitType) obj = obj.parent;
+				if (obj.userData.unitType) {
+					if (activeUnit === obj) {
+						deselectPlacedUnit();
+					} else {
+						selectPlacedUnit(obj);
+					}
+					updateHint();
+					return;
+				}
+			}
+
+			if (activeUnit) {
+				const intersects = raycaster.intersectObject(planet);
+				if (intersects.length > 0) {
+					commandMoveTo(intersects[0].point);
+					return;
+				}
+			}
+
+			deselectPlacedUnit();
+			updateHint();
+		}
+
+		function onKeyDown(event) {
+			if (gameOver) return;
+			if (event.key === 'Escape') {
+				if (activeUnit) {
+					deselectPlacedUnit();
+				} else if (selectedUnit) {
+					selectedUnit = null;
+					removeGhost();
+					document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('selected'));
+				}
+				updateHint();
+			}
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		function findClosestTarget(tank) {
+			const info = unitTypes[tank.userData.unitType];
+			const range = info.fireRange || TANK_FIRE_RANGE;
+			const myTeam = getUnitTeam(tank);
+			let closest = null;
+			let closestDist = Infinity;
+			for (const unit of placedUnits) {
+				if (unit === tank) continue;
+				if (getUnitTeam(unit) === myTeam) continue; // only attack opposite team
+				const dist = tank.position.distanceTo(unit.position);
+				if (dist < range && dist < closestDist) {
+					closest = unit;
+					closestDist = dist;
+				}
+			}
+			return closest;
+		}
+
+		function aimTurretAt(tank, target) {
+			const info = unitTypes[tank.userData.unitType];
+			const s = info.tankScale || 1.0;
+			const barrel = tank.children.find(c => c.userData && c.userData.isBarrel);
+			if (!barrel) return;
+
+			const toTarget = target.position.clone().sub(tank.position);
+			const up = tank.position.clone().normalize();
+			toTarget.sub(up.clone().multiplyScalar(toTarget.dot(up)));
+			if (toTarget.lengthSq() < 0.0001) return;
+			toTarget.normalize();
+
+			const localFwd = info.localForward.clone();
+			const worldFwd = localFwd.applyQuaternion(tank.quaternion);
+			const projFwd = worldFwd.clone().sub(up.clone().multiplyScalar(worldFwd.dot(up)));
+			if (projFwd.lengthSq() < 0.0001) return;
+			projFwd.normalize();
+
+			const angle = Math.atan2(
+				new THREE.Vector3().crossVectors(projFwd, toTarget).dot(up),
+				projFwd.dot(toTarget)
+			);
+
+			const turretBase = tank.children.find(c => c.userData && c.userData.isTurretBase);
+
+			const qLocal = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+			if (turretBase) {
+				turretBase.quaternion.slerp(qLocal, 0.1);
+			}
+
+			barrel.position.set(
+				0.15 * s * Math.cos(angle),
+				0.2 * s,
+				0.15 * s * Math.sin(angle)
+			);
+			barrel.rotation.set(0, 0, 0);
+			const barrelQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+			const rotQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+			barrel.quaternion.copy(rotQ.multiply(barrelQ));
+		}
+
+		function fireBullet(tank, target) {
+			const info = unitTypes[tank.userData.unitType];
+			const s = info.tankScale || 1.0;
+			const damage = info.bulletDamage || BULLET_DAMAGE;
+
+			const up = tank.position.clone().normalize();
+			const toTarget = target.position.clone().sub(tank.position);
+			toTarget.sub(up.clone().multiplyScalar(toTarget.dot(up)));
+			if (toTarget.lengthSq() < 0.0001) return;
+			toTarget.normalize();
+
+			const muzzlePos = tank.position.clone()
+				.add(toTarget.clone().multiplyScalar(0.3 * s))
+				.add(up.clone().multiplyScalar(0.22 * s));
+
+			playFireSound();
+
+			const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial.clone());
+			bullet.scale.setScalar(Math.max(0.8, s));
+			bullet.position.copy(muzzlePos);
+			scene.add(bullet);
+
+			const startDir = muzzlePos.clone().normalize();
+			const targetDir = target.position.clone().normalize();
+			const arcAngle = Math.acos(Math.max(-1, Math.min(1, startDir.dot(targetDir))));
+
+			bullet.userData = {
+				startDir,
+				targetDir,
+				arcAngle,
+				progress: 0,
+				age: 0,
+				target,
+				damage,
+				startHeight: muzzlePos.length(),
+				targetHeight: target.position.length() + 0.22,
+			};
+			bullets.push(bullet);
+
+			createMuzzleFlash(muzzlePos, up);
+		}
+
+		function createMuzzleFlash(pos, normal) {
+			const flash = new THREE.PointLight(0xffaa33, 3, 1.5);
+			flash.position.copy(pos);
+			scene.add(flash);
+			flash.userData.age = 0;
+			flash.userData.maxAge = 0.1;
+			explosions.push(flash);
+
+			const flashGeo = new THREE.SphereGeometry(0.04, 4, 4);
+			const flashMat = new THREE.MeshBasicMaterial({
+				color: 0xffdd44, transparent: true, opacity: 1,
+			});
+			const flashMesh = new THREE.Mesh(flashGeo, flashMat);
+			flashMesh.position.copy(pos);
+			scene.add(flashMesh);
+			flashMesh.userData.age = 0;
+			flashMesh.userData.maxAge = 0.08;
+			explosions.push(flashMesh);
+		}
+
+		function createExplosion(pos) {
+			const light = new THREE.PointLight(0xff6600, 4, 2);
+			light.position.copy(pos);
+			scene.add(light);
+			light.userData.age = 0;
+			light.userData.maxAge = 0.25;
+			explosions.push(light);
+
+			for (let i = 0; i < 6; i++) {
+				const sparkGeo = new THREE.SphereGeometry(0.015 + Math.random() * 0.02, 4, 4);
+				const sparkMat = new THREE.MeshBasicMaterial({
+					color: Math.random() > 0.5 ? 0xffaa22 : 0xff4400,
+					transparent: true, opacity: 1,
+				});
+				const spark = new THREE.Mesh(sparkGeo, sparkMat);
+				spark.position.copy(pos);
+				const dir = new THREE.Vector3(
+					Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5
+				).normalize().multiplyScalar(0.5 + Math.random() * 1.0);
+				spark.userData.velocity = dir;
+				spark.userData.age = 0;
+				spark.userData.maxAge = 0.2 + Math.random() * 0.15;
+				scene.add(spark);
+				explosions.push(spark);
+			}
+		}
+
+		function updateTankFiring(delta) {
+			for (const unit of placedUnits) {
+				const info = unitTypes[unit.userData.unitType];
+				if (!info || !info.isTank) continue;
+
+				if (unit.userData.fireCooldown === undefined) unit.userData.fireCooldown = 0;
+				unit.userData.fireCooldown = Math.max(0, unit.userData.fireCooldown - delta);
+
+				const target = findClosestTarget(unit);
+				if (!target) continue;
+
+				aimTurretAt(unit, target);
+
+				if (unit.userData.fireCooldown <= 0) {
+					fireBullet(unit, target);
+					unit.userData.fireCooldown = info.fireCooldown || TANK_FIRE_COOLDOWN;
+				}
+			}
+		}
+
+		function updateBullets(delta) {
+			for (let i = bullets.length - 1; i >= 0; i--) {
+				const b = bullets[i];
+				const ud = b.userData;
+				ud.age += delta;
+
+				if (ud.age > BULLET_LIFETIME) {
+					scene.remove(b);
+					bullets.splice(i, 1);
+					continue;
+				}
+
+				const arcLength = ud.arcAngle * planetRadius;
+				if (arcLength < 0.001) {
+					createExplosion(b.position.clone());
+					scene.remove(b);
+					bullets.splice(i, 1);
+					continue;
+				}
+
+				ud.progress = Math.min(1, ud.progress + (BULLET_SPEED * delta) / arcLength);
+				const t = ud.progress;
+				const angle = ud.arcAngle;
+				const sinAngle = Math.sin(angle);
+
+				let newDir;
+				if (sinAngle < 0.001) {
+					newDir = ud.targetDir.clone();
+				} else {
+					newDir = ud.startDir.clone()
+						.multiplyScalar(Math.sin((1 - t) * angle) / sinAngle)
+						.add(ud.targetDir.clone().multiplyScalar(Math.sin(t * angle) / sinAngle));
+				}
+				newDir.normalize();
+
+				const arcHeight = Math.sin(t * Math.PI) * 0.15;
+				const baseR = ud.startHeight + (ud.targetHeight - ud.startHeight) * t;
+				const r = baseR + arcHeight;
+				b.position.copy(newDir.clone().multiplyScalar(r));
+
+				const hitDist = 0.35;
+				if (ud.target && b.position.distanceTo(ud.target.position) < hitDist) {
+					createExplosion(b.position.clone());
+					damageUnit(ud.target, ud.damage || BULLET_DAMAGE);
+					scene.remove(b);
+					bullets.splice(i, 1);
+					continue;
+				}
+
+				if (ud.progress >= 1) {
+					createExplosion(b.position.clone());
+					scene.remove(b);
+					bullets.splice(i, 1);
+				}
+			}
+		}
+
+		function updateExplosions(delta) {
+			for (let i = explosions.length - 1; i >= 0; i--) {
+				const e = explosions[i];
+				e.userData.age += delta;
+				const t = e.userData.age / e.userData.maxAge;
+
+				if (t >= 1) {
+					scene.remove(e);
+					explosions.splice(i, 1);
+					continue;
+				}
+
+				if (e.isPointLight) {
+					e.intensity *= 0.85;
+				} else if (e.isMesh) {
+					e.material.opacity = 1 - t;
+					if (e.userData.velocity) {
+						e.position.add(e.userData.velocity.clone().multiplyScalar(delta));
+						e.userData.velocity.multiplyScalar(0.92);
+					}
+					e.scale.setScalar(1 + t * 0.5);
+				}
+			}
+		}
+
+		function spawnFactorySmoke(factory, offsetKey, dark) {
+			const offset = factory.userData[offsetKey];
+			if (!offset) return;
+			const worldOffset = offset.clone().applyQuaternion(factory.quaternion);
+			const pos = factory.position.clone().add(worldOffset);
+			const up = factory.position.clone().normalize();
+
+			const size = 0.05 + Math.random() * 0.06;
+			const geo = new THREE.SphereGeometry(size, 6, 6);
+			const tone = dark ? 0.35 + Math.random() * 0.15 : 0.7 + Math.random() * 0.2;
+			const mat = new THREE.MeshBasicMaterial({
+				color: new THREE.Color(tone, tone, tone * 1.02),
+				transparent: true,
+				opacity: 0.55,
+				depthWrite: false,
+				toneMapped: false,
+			});
+			const puff = new THREE.Mesh(geo, mat);
+			puff.position.copy(pos);
+			puff.renderOrder = 6;
+
+			const drift = new THREE.Vector3(
+				(Math.random() - 0.5) * 0.15,
+				(Math.random() - 0.5) * 0.15,
+				(Math.random() - 0.5) * 0.15
+			);
+			puff.userData.velocity = up.clone().multiplyScalar(0.25 + Math.random() * 0.2).add(drift);
+			puff.userData.age = 0;
+			puff.userData.maxAge = 1.6 + Math.random() * 1.2;
+			puff.userData.growth = 1.4 + Math.random() * 0.8;
+
+			scene.add(puff);
+			smokeParticles.push(puff);
+		}
+
+		function updateSmoke(delta) {
+			for (let i = smokeParticles.length - 1; i >= 0; i--) {
+				const p = smokeParticles[i];
+				p.userData.age += delta;
+				const t = p.userData.age / p.userData.maxAge;
+				if (t >= 1) {
+					scene.remove(p);
+					smokeParticles.splice(i, 1);
+					continue;
+				}
+				p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
+				p.userData.velocity.multiplyScalar(0.96);
+				p.material.opacity = 0.55 * (1 - t);
+				p.scale.setScalar(1 + t * p.userData.growth);
+			}
+		}
+
+		function findTankSpawnPosition(factory) {
+			const up = factory.position.clone().normalize();
+			const offset = factory.userData.spawnOffset || new THREE.Vector3(0.55, 0, 0);
+			const worldOffsetDir = offset.clone().applyQuaternion(factory.quaternion).normalize();
+
+			let tangent = worldOffsetDir.clone().sub(up.clone().multiplyScalar(worldOffsetDir.dot(up)));
+			if (tangent.lengthSq() < 0.0001) {
+				tangent = new THREE.Vector3(1, 0, 0).cross(up);
+				if (tangent.lengthSq() < 0.0001) tangent = new THREE.Vector3(0, 0, 1).cross(up);
+			}
+			tangent.normalize();
+
+			const factoryRadius = TANK_FACTORY_RADIUS;
+			const startArc = (factoryRadius + UNIT_RADIUS + 0.05) / planetRadius;
+			const stepArc = 0.04;
+			const sideOffsets = [0, 0.35, -0.35, 0.7, -0.7, 1.0, -1.0, 1.4, -1.4, Math.PI];
+
+			for (let step = 0; step < 8; step++) {
+				const arc = startArc + step * stepArc;
+				for (const sideRad of sideOffsets) {
+					const sideQ = new THREE.Quaternion().setFromAxisAngle(up, sideRad);
+					const dir = tangent.clone().applyQuaternion(sideQ);
+					const axis = new THREE.Vector3().crossVectors(up, dir);
+					if (axis.lengthSq() < 0.0001) continue;
+					axis.normalize();
+					const moveQ = new THREE.Quaternion().setFromAxisAngle(axis, arc);
+					const newDir = up.clone().applyQuaternion(moveQ).normalize();
+					const newPos = newDir.clone().multiplyScalar(getTerrainRadius(newDir));
+					if (!wouldOverlap(newPos, null, UNIT_RADIUS)) {
+						return { position: newPos, normal: newDir, facing: dir };
+					}
+				}
+			}
+			return null;
+		}
+
+		function produceTankFromFactory(factory, tankType) {
+			if (gameOver) return false;
+			const spawn = findTankSpawnPosition(factory);
+			if (!spawn) return false;
+
+			const team = getUnitTeam(factory);
+			const tank = createUnitMesh(tankType);
+			tank.userData.team = team;
+			if (team === AI_TEAM) {
+				tank.userData.aiId = ++aiState.unitSerial;
+				tank.userData.aiRole = 'defend';
+			}
+			applyTeamTint(tank, team);
+			orientToSurface(tank, spawn.position, spawn.normal, spawn.facing);
+			scene.add(tank);
+			placedUnits.push(tank);
+
+			const maxHealth = unitTypes[tankType].maxHealth || UNIT_MAX_HEALTH;
+			tank.userData.health = maxHealth;
+			tank.userData.maxHealth = maxHealth;
+			createHealthBar(tank);
+
+			if (team === PLAYER_TEAM) playerHasFieldedUnits = true;
+			if (team === AI_TEAM) aiHasFieldedUnits = true;
+
+			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
+
+			for (let i = 0; i < 6; i++) spawnFactorySmoke(factory, 'chimneyOffset', false);
+			return true;
+		}
+
+		function enqueueFactoryBuild(factory, tankType) {
+			if (gameOver) return;
+			if (!unitTypes[tankType] || !unitTypes[tankType].isTank) return;
+			if (!factory.userData.buildQueue) factory.userData.buildQueue = [];
+			factory.userData.buildQueue.push(tankType);
+			rebuildFactoryQueueUI();
+		}
+
+		function cancelFactoryBuild(factory, queueIndex) {
+			const q = factory.userData.buildQueue;
+			if (!q || queueIndex >= q.length) return;
+			q.splice(queueIndex, 1);
+			if (queueIndex === 0) factory.userData.buildProgress = 0;
+			rebuildFactoryQueueUI();
+		}
+
+		function updateFactories(delta) {
+			for (const factory of placedUnits) {
+				if (factory.userData.unitType !== 'tankFactory') continue;
+
+				const ud = factory.userData;
+				if (!ud.buildQueue) ud.buildQueue = [];
+				if (ud.buildProgress === undefined) ud.buildProgress = 0;
+
+				const idleSmokeRate = ud.buildQueue.length > 0 ? 12 : 3;
+				if (Math.random() < delta * idleSmokeRate) spawnFactorySmoke(factory, 'chimneyOffset', false);
+				if (Math.random() < delta * (idleSmokeRate * 0.4)) spawnFactorySmoke(factory, 'chimneyOffset2', true);
+
+				if (ud.antennaTip) {
+					const speedMul = ud.buildQueue.length > 0 ? 0.012 : 0.004;
+					const blink = 0.5 + Math.abs(Math.sin(performance.now() * speedMul)) * 1.4;
+					ud.antennaTip.material.emissiveIntensity = blink;
+				}
+
+				if (ud.buildQueue.length > 0) {
+					const currentType = ud.buildQueue[0];
+					const buildTime = unitTypes[currentType].buildTime || 5.0;
+					const prevLen = ud.buildQueue.length;
+					ud.buildProgress += delta;
+
+					if (ud.buildProgress >= buildTime) {
+						if (produceTankFromFactory(factory, currentType)) {
+							ud.buildQueue.shift();
+							ud.buildProgress = 0;
+						} else {
+							ud.buildProgress = buildTime - 0.5;
+						}
+					}
+
+					if (activeUnit === factory) {
+						if (ud.buildQueue.length !== prevLen) {
+							rebuildFactoryQueueUI();
+						} else {
+							updateFactoryProgressUI(factory);
+						}
+					}
+				}
+			}
+		}
+
+		function createHealthBar(unit) {
+			const barGroup = new THREE.Group();
+
+			const bgGeo = new THREE.PlaneGeometry(0.5, 0.07);
+			const bgMat = new THREE.MeshBasicMaterial({ color: 0x222222, depthTest: false, transparent: true, opacity: 0.2, toneMapped: false });
+			const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+			bgMesh.renderOrder = 1;
+			barGroup.add(bgMesh);
+
+			const fgGeo = new THREE.PlaneGeometry(0.5, 0.07);
+			const fgMat = new THREE.MeshBasicMaterial({ color: 0x44ff44, depthTest: false, toneMapped: false });
+			const fgMesh = new THREE.Mesh(fgGeo, fgMat);
+			fgMesh.renderOrder = 2;
+			fgMesh.position.z = 0.001;
+			barGroup.add(fgMesh);
+
+			barGroup.userData.fgMesh = fgMesh;
+			scene.add(barGroup);
+			unit.userData.healthBar = barGroup;
+
+			updateHealthBarVisual(unit);
+		}
+
+		function updateHealthBarVisual(unit) {
+			const bar = unit.userData.healthBar;
+			if (!bar) return;
+			const pct = unit.userData.health / unit.userData.maxHealth;
+			const fg = bar.userData.fgMesh;
+			fg.scale.x = Math.max(0.001, pct);
+			fg.position.x = (pct - 1) * 0.25;
+			if (pct > 0.5) {
+				fg.material.color.setHex(0x44ff44);
+			} else if (pct > 0.25) {
+				fg.material.color.setHex(0xffdd00);
+			} else {
+				fg.material.color.setHex(0xff2222);
+			}
+		}
+
+		function updateHealthBars() {
+			for (const unit of placedUnits) {
+				const bar = unit.userData.healthBar;
+				if (!bar) continue;
+				const up = unit.position.clone().normalize();
+				bar.position.copy(unit.position).addScaledVector(up, 0.45);
+				bar.quaternion.copy(camera.quaternion);
+			}
+		}
+
+		function damageUnit(unit, amount) {
+			if (gameOver) return;
+			if (!unit.userData || unit.userData.health === undefined) return;
+			unit.userData.health = Math.max(0, unit.userData.health - amount);
+			updateHealthBarVisual(unit);
+			if (unit.userData.health <= 0) {
+				destroyUnit(unit);
+			}
+		}
+
+		function destroyUnit(unit) {
+			createExplosion(unit.position.clone());
+			if (unit.userData.healthBar) {
+				scene.remove(unit.userData.healthBar);
+			}
+			for (const b of bullets) {
+				if (b.userData.target === unit) b.userData.target = null;
+			}
+			for (const other of placedUnits) {
+				if (other.userData && other.userData.attackTarget === unit) {
+					other.userData.attackTarget = null;
+				}
+			}
+			if (activeUnit === unit) {
+				deselectPlacedUnit();
+			}
+			scene.remove(unit);
+			const idx = placedUnits.indexOf(unit);
+			if (idx !== -1) placedUnits.splice(idx, 1);
+			document.getElementById('unit-count').textContent = `Units: ${placedUnits.length}`;
+			checkGameOver();
+		}
+
+		function showGameOver(result) {
+			if (gameOver) return;
+			gameOver = true;
+
+			deselectPlacedUnit();
+			selectedUnit = null;
+			removeGhost();
+			document.querySelectorAll('.menu-item').forEach((el) => el.classList.remove('selected'));
+
+			const overlay = document.getElementById('game-over');
+			const title = document.getElementById('game-over-title');
+			const subtitle = document.getElementById('game-over-subtitle');
+			if (!overlay || !title || !subtitle) return;
+
+			overlay.classList.remove('victory', 'defeat');
+			if (result === 'victory') {
+				overlay.classList.add('victory');
+				title.textContent = 'Victory';
+				subtitle.textContent = 'Enemy forces eliminated. The planet is yours.';
+			} else {
+				overlay.classList.add('defeat');
+				title.textContent = 'Defeat';
+				subtitle.textContent = 'All your units were destroyed.';
+			}
+			overlay.classList.add('visible');
+
+			const hint = document.getElementById('placement-hint');
+			if (hint) hint.style.opacity = '0';
+		}
+
+		function checkGameOver() {
+			if (gameOver) return;
+
+			const playerUnits = getTeamUnits(PLAYER_TEAM);
+			const aiUnits = getTeamUnits(AI_TEAM);
+
+			if (playerUnits.length > 0) playerHasFieldedUnits = true;
+			if (aiUnits.length > 0) aiHasFieldedUnits = true;
+
+			// Don't end before either side has actually entered the fight.
+			if (!playerHasFieldedUnits || !aiHasFieldedUnits) return;
+
+			if (playerUnits.length === 0) {
+				showGameOver('defeat');
+				return;
+			}
+			if (aiUnits.length === 0) {
+				showGameOver('victory');
+			}
+		}
+
+		function render() {
+			const delta = clock.getDelta();
+			controls.update();
+			if (!gameOver) {
+				updateMovingUnits(delta);
+				updateTankFiring(delta);
+				updateBullets(delta);
+				updateFactories(delta);
+				updateAI(delta);
+			}
+			updateExplosions(delta);
+			updateSmoke(delta);
+			updateClouds(delta);
+			updateHealthBars();
+			renderer.render(scene, camera);
+		}
+	</script>
+</body>
+
+</html>
