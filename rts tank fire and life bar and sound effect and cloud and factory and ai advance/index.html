@@ -2055,8 +2055,11 @@
 			if (unitTypes[unit.userData.unitType].speed === 0) return;
 			if (!options.silent) playMoveSound();
 
+			// 將位置正規化成球心到地表的單位方向，讓路徑計算不受地形高度影響。
 			const startDir = unit.position.clone().normalize();
 			const targetDir = targetPoint.clone().normalize();
+			// 單位向量的點積為 cos(θ)，所以球心夾角 θ = acos(startDir · targetDir)。
+			// 浮點誤差可能讓點積略超出 [-1, 1]，先 clamp 可避免 acos 回傳 NaN。
 			const arcAngle = Math.acos(Math.max(-1, Math.min(1, startDir.dot(targetDir))));
 
 			unit.userData.moveStartDir = startDir;
@@ -2076,6 +2079,7 @@
 					ud.moveTarget = null;
 					continue;
 				}
+				// 球面弧長公式：s = rθ，其中 θ 必須使用弧度。
 				const arcLength = ud.moveArcAngle * planetRadius;
 				if (arcLength < 0.001) {
 					ud.moveProgress = 1;
@@ -2083,21 +2087,27 @@
 					continue;
 				}
 
+				// 每幀走過 vΔtime，除以總弧長 s 得到本幀的正規化進度 Δt。
 				ud.moveProgress = Math.min(1, ud.moveProgress + (speed * delta) / arcLength);
 				const t = ud.moveProgress;
 				const angle = ud.moveArcAngle;
 				const sinAngle = Math.sin(angle);
 
 				let newDir;
+				// sin(θ) 接近 0 時分母不穩定；平行方向已無需插值，反平行方向則沒有唯一最短大圓。
 				if (sinAngle < 0.001) {
 					newDir = ud.moveTargetDir.clone();
 				} else {
+					// 球面線性插值（SLERP）：
+					// dir(t) = sin((1-t)θ)/sin(θ) · start + sin(tθ)/sin(θ) · target。
+					// 相較一般線性插值，SLERP 會以等角速度沿球面大圓前進。
 					newDir = ud.moveStartDir.clone()
 						.multiplyScalar(Math.sin((1 - t) * angle) / sinAngle)
 						.add(ud.moveTargetDir.clone().multiplyScalar(Math.sin(t * angle) / sinAngle));
 				}
 				newDir.normalize();
 
+				// 將球面方向乘上該方向的實際地形半徑，使單位貼著山脈與海岸高度移動。
 				const newPos = newDir.clone().multiplyScalar(getTerrainRadius(newDir));
 
 				if (wouldOverlap(newPos, unit, getUnitRadius(unit))) {
